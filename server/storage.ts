@@ -219,6 +219,17 @@ export class MemStorage implements IStorage {
     this.teams.set(id, newTeam);
     return newTeam;
   }
+
+  async deleteTeam(id: number): Promise<void> {
+    const team = this.teams.get(id);
+    if (!team) {
+      throw new Error('Team not found');
+    }
+    if (!team.isCustom) {
+      throw new Error('Cannot delete pre-defined team');
+    }
+    this.teams.delete(id);
+  }
   
   async getTeamById(id: number): Promise<Team | undefined> {
     return this.teams.get(id);
