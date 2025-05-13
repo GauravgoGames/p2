@@ -6,18 +6,26 @@ import { Express, Request } from 'express';
 // Ensure upload directories exist
 const createUploadDirectories = () => {
   const dirs = [
+    path.join(process.cwd(), 'public'),
+    path.join(process.cwd(), 'public/uploads'),
     path.join(process.cwd(), 'public/uploads/teams'),
     path.join(process.cwd(), 'public/uploads/users'),
     path.join(process.cwd(), 'public/uploads/site')
   ];
 
   for (const dir of dirs) {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+        console.log(`Created directory: ${dir}`);
+      }
+    } catch (error) {
+      console.error(`Error creating directory ${dir}:`, error);
     }
   }
 };
 
+// Ensure directories exist on startup
 createUploadDirectories();
 
 // Configure storage for team logos
