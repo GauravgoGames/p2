@@ -214,8 +214,15 @@ const ProfilePage = () => {
   };
   
   // Prediction statistics
-  const totalPredictions = predictions?.length || 0;
-  const correctPredictions = predictions?.filter((p: any) => p.pointsEarned && p.pointsEarned > 0).length || 0;
+  const totalPredictions = predictions?.length * 2 || 0; // Each match has 2 predictions (toss & winner)
+  const correctPredictions = predictions?.reduce((acc: number, p: any) => {
+    // Count both toss and match winner predictions
+    let correct = 0;
+    const match = p.match;
+    if (match.tossWinnerId && p.predictedTossWinnerId === match.tossWinnerId) correct++;
+    if (match.matchWinnerId && p.predictedMatchWinnerId === match.matchWinnerId) correct++;
+    return acc + correct;
+  }, 0) || 0;
   const accuracy = totalPredictions > 0 ? (correctPredictions / totalPredictions * 100).toFixed(1) : '0.0';
   
   return (
