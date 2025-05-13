@@ -7,6 +7,7 @@ channel = "stable-24_05"
 [deployment]
 run = ["sh", "-c", "NODE_ENV=production node dist/index.js"]
 build = ["sh", "-c", "npm run build"]
+deploymentTarget = "cloudrun"
 
 [workflows]
 runButton = "Start Dev Server"
