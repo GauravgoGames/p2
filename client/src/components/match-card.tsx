@@ -183,6 +183,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
   
   return (
     <div className="match-card bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
+      <div className="lightning" />
       <div className="p-4 relative">
         {match.status === 'ongoing' ? (
           <motion.div 

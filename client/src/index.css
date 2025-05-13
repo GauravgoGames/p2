@@ -88,30 +88,72 @@
 
 @layer components {
   .match-card {
-    @apply transition-all duration-300 ease-in-out transform;
+    @apply transition-all duration-300 ease-in-out transform relative overflow-hidden;
     transform: perspective(1000px) rotateX(0deg);
   }
-  
+
+  .lightning {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .lightning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, 
+      transparent 45%, 
+      rgba(255, 255, 255, 0.7) 50%,
+      transparent 55%
+    );
+    filter: brightness(1.5);
+    opacity: 0;
+    animation: lightning 5s linear infinite;
+  }
+
+  @keyframes lightning {
+    0% { 
+      opacity: 0;
+      transform: translateX(-100%) skewX(-45deg);
+    }
+    2%, 4% {
+      opacity: 1;
+    }
+    6% {
+      opacity: 0;
+      transform: translateX(100%) skewX(-45deg);
+    }
+    100% { opacity: 0; }
+  }
+
   .match-card:hover {
     transform: perspective(1000px) rotateX(5deg) translateY(-5px);
   }
-  
+
   .status-badge {
     @apply uppercase text-xs font-bold tracking-wider;
   }
-  
+
   .prediction-option {
     @apply transition-all duration-200 ease-in-out;
   }
-  
+
   .prediction-option:hover:not(.selected) {
     @apply transform -translate-y-0.5 shadow-md;
   }
-  
+
   .prediction-option.selected {
     @apply border-primary bg-primary bg-opacity-10;
   }
-  
+
   .tab-active {
     @apply border-b-2 border-accent;
   }
