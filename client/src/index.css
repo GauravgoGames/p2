@@ -100,38 +100,63 @@
     bottom: 0;
     pointer-events: none;
     z-index: 1;
+    overflow: hidden;
   }
 
-  .lightning::before {
+  .lightning::before,
+  .lightning::after {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(45deg, 
-      transparent 45%, 
-      rgba(255, 255, 255, 0.7) 50%,
-      transparent 55%
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(230, 247, 255, 0.7) 30%,
+      transparent 70%
     );
-    filter: brightness(1.5);
+    box-shadow: 
+      0 0 50px #fff,
+      0 0 100px #39f,
+      0 0 150px #07f;
     opacity: 0;
-    animation: lightning 5s linear infinite;
+    filter: brightness(1.5) contrast(1.2);
+    transform-origin: center;
+    animation: thunder 7s linear infinite;
   }
 
-  @keyframes lightning {
-    0% { 
+  .lightning::after {
+    animation: thunder 7s linear infinite 3.5s;
+  }
+
+  @keyframes thunder {
+    0%, 95%, 100% {
       opacity: 0;
-      transform: translateX(-100%) skewX(-45deg);
+      transform: scale(0.95);
     }
-    2%, 4% {
+    95.5%, 96% {
       opacity: 1;
+      transform: scale(1);
     }
-    6% {
+    96.5% {
+      opacity: 0.3;
+      transform: scale(1.05);
+    }
+    97% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    97.5%, 98% {
       opacity: 0;
-      transform: translateX(100%) skewX(-45deg);
+      transform: scale(1.1);
     }
-    100% { opacity: 0; }
+  }
+
+  .match-card:hover .lightning::before,
+  .match-card:hover .lightning::after {
+    animation-duration: 5s;
   }
 
   .match-card:hover {
