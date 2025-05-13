@@ -81,6 +81,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: "Invalid team data", error });
     }
   });
+
+  app.delete("/api/teams/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await storage.deleteTeam(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting team" });
+    }
+  });
   
   // Team logo upload
   app.post("/api/teams/upload-logo", isAdmin, uploadTeamLogo.single('logo'), async (req, res) => {

@@ -155,6 +155,13 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  async deleteTeam(id: number): Promise<void> {
+    const result = await db.delete(teams).where(eq(teams.id, id));
+    if (!result) {
+      throw new Error(`Team with id ${id} not found`);
+    }
+  }
+
   // Team methods
   async createTeam(team: InsertTeam): Promise<Team> {
     const [newTeam] = await db.insert(teams).values(team).returning();
