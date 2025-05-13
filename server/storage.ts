@@ -225,9 +225,6 @@ export class MemStorage implements IStorage {
     if (!team) {
       throw new Error('Team not found');
     }
-    if (!team.isCustom) {
-      throw new Error('Cannot delete pre-defined team');
-    }
     this.teams.delete(id);
   }
   
