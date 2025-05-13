@@ -88,6 +88,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteTeam(id);
       res.status(204).send();
     } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Cannot delete pre-defined team') {
+          return res.status(403).json({ message: error.message });
+        }
+        if (error.message === 'Team not found') {
+          return res.status(404).json({ message: error.message });
+        }
+      }
       res.status(500).json({ message: "Error deleting team" });
     }
   });
