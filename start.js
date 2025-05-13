@@ -1,6 +1,6 @@
-// Simple startup script for cPanel
+// Server startup script
 const { spawn } = require('child_process');
-console.log("Starting ProAce Predictions...");
+console.log('Starting ProAce Predictions...');
 
 // Load environment variables from .env file
 require('dotenv').config();
@@ -10,8 +10,7 @@ if (!process.env.PORT) {
   process.env.PORT = '3000';
 }
 
-// Start the server
-const server = spawn('node', ['server/index.js'], { 
+const server = spawn('node', ['dist/server/index.js'], {
   stdio: 'inherit',
   env: { ...process.env, NODE_ENV: 'production' }
 });
