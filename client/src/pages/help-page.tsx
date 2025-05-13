@@ -100,9 +100,11 @@ const HelpPage = () => {
             
             <div className="mt-6 border-t pt-6">
               <p className="text-sm text-neutral-500 mb-3">Need more help?</p>
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Mail size={16} />
-                Contact Support
+              <Button variant="outline" className="w-full justify-start gap-2" asChild>
+                <a href="https://www.pro-ace-predictions.co.uk/" target="_blank" rel="noopener noreferrer">
+                  <Mail size={16} />
+                  Contact Support
+                </a>
               </Button>
             </div>
           </div>

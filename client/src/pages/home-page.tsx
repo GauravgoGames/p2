@@ -85,19 +85,19 @@ const HomePage = () => {
       <HeroSection />
       
       <div id="ongoing-matches" className="bg-white shadow-md rounded-lg mb-8">
-        <Tabs defaultValue="ongoing" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="upcoming" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex justify-start border-b border-neutral-200 w-full rounded-none">
-            <TabsTrigger 
-              value="ongoing" 
-              className="data-[state=active]:border-b-2 data-[state=active]:border-accent"
-            >
-              Ongoing
-            </TabsTrigger>
             <TabsTrigger 
               value="upcoming"
               className="data-[state=active]:border-b-2 data-[state=active]:border-accent"
             >
               Upcoming
+            </TabsTrigger>
+            <TabsTrigger 
+              value="ongoing" 
+              className="data-[state=active]:border-b-2 data-[state=active]:border-accent"
+            >
+              Ongoing
             </TabsTrigger>
             <TabsTrigger 
               value="completed"

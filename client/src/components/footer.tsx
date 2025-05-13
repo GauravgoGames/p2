@@ -28,13 +28,7 @@ const Footer = () => {
           </div>
           
           <div className="flex space-x-4">
-            <a href="#" className="text-neutral-300 hover:text-white">
-              <Facebook className="h-5 w-5" />
-            </a>
-            <a href="#" className="text-neutral-300 hover:text-white">
-              <Twitter className="h-5 w-5" />
-            </a>
-            <a href="#" className="text-neutral-300 hover:text-white">
+            <a href="https://www.instagram.com/proacepredictions/" target="_blank" rel="noopener noreferrer" className="text-neutral-300 hover:text-white">
               <Instagram className="h-5 w-5" />
             </a>
           </div>

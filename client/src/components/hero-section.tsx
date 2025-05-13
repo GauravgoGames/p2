@@ -20,7 +20,7 @@ const HeroSection = () => {
             <p className="text-xl text-white mb-6 max-w-2xl">Predict match winners, win points, climb the leaderboard</p>
             
             {user ? (
-              <Link href="#ongoing-matches">
+              <Link href="/predict-now">
                 <Button className="px-6 py-3 bg-accent hover:bg-accent/90 text-white font-medium rounded-md shadow-lg transition-all duration-300 transform hover:scale-105">
                   Start Predicting
                 </Button>
