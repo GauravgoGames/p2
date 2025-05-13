@@ -156,22 +156,20 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteTeam(id: number): Promise<void> {
-    try {
-      // First check if team exists and is custom
-      const [team] = await db.select().from(teams).where(eq(teams.id, id));
-      
-      if (!team) {
-        throw new Error('Team not found');
-      }
-      
-      if (!team.isCustom) {
-        throw new Error('Cannot delete pre-defined team');
-      }
-      
-      await db.delete(teams).where(eq(teams.id, id));
-    } catch (error) {
-      console.error('Error deleting team:', error);
-      throw error;
+    // First check if team exists and is custom
+    const [team] = await db.select().from(teams).where(eq(teams.id, id));
+    
+    if (!team) {
+      throw new Error('Team not found');
+    }
+    
+    if (!team.isCustom) {
+      throw new Error('Cannot delete pre-defined team');
+    }
+    
+    const result = await db.delete(teams).where(eq(teams.id, id));
+    if (!result) {
+      throw new Error('Failed to delete team');
     }
   }
 
