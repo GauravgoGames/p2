@@ -415,20 +415,20 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 Who will win the toss?
               </div>
 
-              {predictionStats && predictionStats.tossWinner && (
-                <div className="mb-4 px-2">
-                  <div className="text-xs text-neutral-500 mb-1 flex justify-between">
-                    <span>{predictionStats.tossWinner.team1Count || 0} votes</span>
-                    <span>{predictionStats.tossWinner.team2Count || 0} votes</span>
-                  </div>
-                  <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                    <div
+              {/* Prediction Stats - Visible to all users */}
+              <div className="mb-4 px-2">
+                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
+                  <span>{predictionStats?.tossWinner?.team1Count || 0} votes</span>
+                  <span>{predictionStats?.tossWinner?.team2Count || 0} votes</span>
+                </div>
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div
                       className="h-full bg-gradient-to-r from-green-500 to-red-500"
                       style={{
                         width: '100%',
                         background: `linear-gradient(to right, 
-                          #22c55e ${predictionStats.tossWinner.team1Percentage || 50}%, 
-                          #ef4444 ${predictionStats.tossWinner.team1Percentage || 50}%)`
+                          #22c55e ${predictionStats?.tossWinner?.team1Percentage || 50}%, 
+                          #ef4444 ${predictionStats?.tossWinner?.team1Percentage || 50}%)`
                       }}
                     />
                   </div>
