@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, PieChart, Check, X } from "lucide-react";
 import MatchCard from '@/components/match-card';
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 export default function ProfilePage() {
   const { user: currentUser } = useAuth();
