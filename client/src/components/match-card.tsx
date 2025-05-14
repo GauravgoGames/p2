@@ -184,11 +184,11 @@ const MatchCard = ({ match, userPrediction, tossPredictionCounts, matchPredictio
   };
 
   const getPredictionCounts = (type: string, teamId: number) => {
+    if (!tossPredictionCounts || !matchPredictionCounts) return 0;
     if (type === 'toss') {
       return tossPredictionCounts[teamId] || 0;
-    } else {
-      return matchPredictionCounts[teamId] || 0;
     }
+    return matchPredictionCounts[teamId] || 0;
   };
 
   return (
