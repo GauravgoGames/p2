@@ -32,7 +32,7 @@ function Router() {
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/help" component={HelpPage} />
           <ProtectedRoute path="/profile" component={ProfilePage} />
-          <Route path="/users/:username" element={<UserProfilePage />} />
+          <Route path="/users/:username" component={ProfilePage} />
           <ProtectedRoute path="/admin" component={AdminDashboard} adminOnly={true} />
           <ProtectedRoute path="/admin/matches" component={ManageMatches} adminOnly={true} />
           <ProtectedRoute path="/admin/users" component={ManageUsers} adminOnly={true} />
