@@ -160,11 +160,6 @@ const LeaderboardPage = () => {
                         </div>
                       </td>
                       <td className="py-4">{entry.totalMatches}</td>
-                      <td className="py-4">
-                        <Badge variant="outline" className="font-semibold">
-                          {calculateStrikeRate(entry)}%
-                        </Badge>
-                      </td>
                       {matches?.map((match: any) => {
                         const prediction = entry.predictions?.find((p: any) => p.matchId === match.id);
                         const predictedTeam = match.teams?.find((t: any) => t.id === prediction?.predictedMatchWinnerId);
