@@ -123,7 +123,6 @@ const LeaderboardPage = () => {
                     <th className="pb-3 pl-4">Rank</th>
                     <th className="pb-3">Predictor</th>
                     <th className="pb-3">Matches</th>
-                    <th className="pb-3">Pass %</th>
                     {matches?.map((match: any, index: number) => (
                       <th key={match.id} className="pb-3 px-2 text-center">
                         <div className="flex flex-col items-center gap-1">
@@ -169,13 +168,15 @@ const LeaderboardPage = () => {
                       {matches?.map((match: any) => {
                         const prediction = entry.predictions?.find((p: any) => p.matchId === match.id);
                         const predictedTeam = match.teams?.find((t: any) => t.id === prediction?.predictedMatchWinnerId);
-                        const isCorrect = match.status === 'completed' && prediction?.predictedMatchWinnerId === match.matchWinnerId;
-                        const isWrong = match.status === 'completed' && prediction?.predictedMatchWinnerId !== match.matchWinnerId;
+                        const correctWinner = match.status === 'completed' && prediction?.predictedMatchWinnerId === match.matchWinnerId;
+                        const correctToss = match.status === 'completed' && prediction?.predictedTossWinnerId === match.tossWinnerId;
+                        const points = (correctWinner ? 1 : 0) + (correctToss ? 1 : 0);
 
                         return (
                           <td key={match.id} className={`py-2 px-3 text-center text-sm font-medium ${
-                            isCorrect ? 'bg-green-100 text-green-800' : 
-                            isWrong ? 'bg-red-100 text-red-800' : 
+                            points === 2 ? 'bg-green-100 text-green-800' : 
+                            points === 1 ? 'bg-orange-100 text-orange-800' : 
+                            match.status === 'completed' ? 'bg-red-100 text-red-800' : 
                             'bg-neutral-50 text-neutral-600'
                           }`}>
                             {predictedTeam ? predictedTeam.name.substring(0, 3).toUpperCase() : '-'}
