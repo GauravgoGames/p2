@@ -10,8 +10,20 @@ import { useAuth } from "@/hooks/use-auth";
 
 export default function ProfilePage() {
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const params = useParams<{ username: string }>();
   const username = params.username || currentUser?.username;
+
+  // Show notification if viewing another user's profile
+  useEffect(() => {
+    if (params.username && currentUser && params.username !== currentUser.username) {
+      toast({
+        title: "View Only Mode",
+        description: "You can't change or update another user's statistics or predictions. You can only change yours.",
+        duration: 5000,
+      });
+    }
+  }, [params.username, currentUser]);
 
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: [`/api/users/${username}`],
