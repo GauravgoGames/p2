@@ -422,12 +422,20 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                   <span>{predictionStats?.tossWinner?.team2Count || 0} votes</span>
                 </div>
                 <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-green-500 to-red-500"
-                    style={{
-                      width: `${predictionStats?.tossWinner?.team1Percentage || 50}%`
-                    }}
-                  />
+                  <div className="h-full flex">
+                    <div 
+                      className="h-full bg-green-500"
+                      style={{
+                        width: `${predictionStats?.tossWinner?.team1Percentage || 0}%`
+                      }}
+                    />
+                    <div 
+                      className="h-full bg-red-500"
+                      style={{
+                        width: `${predictionStats?.tossWinner?.team2Percentage || 0}%`
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -489,15 +497,20 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                   <span>{predictionStats?.matchWinner?.team2Count || 0} votes</span>
                 </div>
                 <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full"
-                    style={{
-                      width: '100%',
-                      background: `linear-gradient(to right, 
-                        #22c55e ${predictionStats?.matchWinner?.team1Percentage || 0}%, 
-                        #ef4444 ${predictionStats?.matchWinner?.team2Percentage || 0}%)`
-                    }}
-                  />
+                  <div className="h-full flex">
+                    <div 
+                      className="h-full bg-green-500"
+                      style={{
+                        width: `${predictionStats?.matchWinner?.team1Percentage || 0}%`
+                      }}
+                    />
+                    <div 
+                      className="h-full bg-red-500"
+                      style={{
+                        width: `${predictionStats?.matchWinner?.team2Percentage || 0}%`
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
