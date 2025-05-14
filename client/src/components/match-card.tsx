@@ -64,21 +64,12 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
   }, [fetchedPredictionStats]);
 
 
+  // Remove duplicate prediction stats fetching since we already have the useQuery hook
   useEffect(() => {
-    const fetchPredictionStats = async () => {
-      try {
-        const data = await apiRequest('GET', `/api/predictions/stats?matchId=${match.id}`);
-        setPredictionStats(data);
-      } catch (error) {
-        console.error('Failed to fetch prediction stats:', error);
-        setPredictionStats(null);
-      }
-    };
-
-    if (match.status === 'upcoming') {
-      fetchPredictionStats();
+    if (match.status === 'upcoming' && fetchedPredictionStats) {
+      setPredictionStats(fetchedPredictionStats);
     }
-  }, [match.id, match.status]);
+  }, [match.status, fetchedPredictionStats]);
 
   const predictionMutation = useMutation({
     mutationFn: async () => {
