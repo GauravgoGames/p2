@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Crown, Medal, Search, Trophy, Users, Award } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/use-auth';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ChartContainer, ChartTooltipContent, ChartLegendContent } from '@/components/ui/chart';
 
 interface LeaderboardUser {
   id: number;
@@ -176,6 +178,37 @@ const LeaderboardPage = () => {
 
       <div className="bg-white shadow-md rounded-lg p-6">
         <h2 className="text-xl font-bold mb-4">How Points are Earned</h2>
+
+      {/* Performance Chart */}
+      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+        <h2 className="text-xl font-bold mb-6">Performance Comparison</h2>
+        <ChartContainer
+          config={{
+            matchWinner: { color: '#4CAF50', label: 'Match Winner' },
+            tossWinner: { color: '#2196F3', label: 'Toss Winner' },
+            successRate: { color: '#FF9800', label: 'Success Rate' }
+          }}
+          className="h-[400px]"
+        >
+          <BarChart data={filteredUsers().slice(0, 10).map(user => ({
+            name: user.displayName || user.username,
+            matchWinner: Math.floor(user.correctPredictions/2),
+            tossWinner: Math.ceil(user.correctPredictions/2),
+            successRate: Number(((user.correctPredictions/(user.totalMatches*2))*100).toFixed(1))
+          }))}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+            <YAxis />
+            <Tooltip content={<ChartTooltipContent />} />
+            <Legend content={<ChartLegendContent />} />
+            <Bar dataKey="matchWinner" fill="var(--color-matchWinner)" />
+            <Bar dataKey="tossWinner" fill="var(--color-tossWinner)" />
+            <Bar dataKey="successRate" fill="var(--color-successRate)" />
+          </BarChart>
+        </ChartContainer>
+      </div>
+
+
         <div className="space-y-3">
           <div className="flex items-start gap-3">
             <div className="bg-green-100 p-2 rounded-full mt-0.5">
