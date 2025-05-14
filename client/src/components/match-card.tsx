@@ -415,12 +415,11 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 Who will win the toss?
               </div>
 
-              {/* Prediction Meter */}
-              {predictionStats && (
+              {predictionStats && predictionStats.tossWinner && (
                 <div className="mb-4 px-2">
                   <div className="text-xs text-neutral-500 mb-1 flex justify-between">
-                    <span>{predictionStats.tossWinner.team1Count} votes</span>
-                    <span>{predictionStats.tossWinner.team2Count} votes</span>
+                    <span>{predictionStats.tossWinner.team1Count || 0} votes</span>
+                    <span>{predictionStats.tossWinner.team2Count || 0} votes</span>
                   </div>
                   <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
                     <div
@@ -428,8 +427,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                       style={{
                         width: '100%',
                         background: `linear-gradient(to right, 
-                          #22c55e ${predictionStats.tossWinner.team1Percentage}%, 
-                          #ef4444 ${predictionStats.tossWinner.team1Percentage}%)`
+                          #22c55e ${predictionStats.tossWinner.team1Percentage || 50}%, 
+                          #ef4444 ${predictionStats.tossWinner.team1Percentage || 50}%)`
                       }}
                     />
                   </div>
