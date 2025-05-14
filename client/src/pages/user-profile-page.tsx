@@ -4,11 +4,28 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface UserProfile {
+  id: number;
+  username: string;
+  displayName: string;
+  points: number;
+  correctPredictions: number;
+  totalMatches: number;
+}
+
+interface Prediction {
+  id: number;
+  matchTitle: string;
+  prediction: string;
+  result: string;
+  createdAt: string;
+}
+
 export default function UserProfilePage() {
-  const params = useParams();
+  const params = useParams<{ username: string }>();
   const username = params.username;
 
-  const { data: user, isLoading: userLoading, error: userError } = useQuery({
+  const { data: user, isLoading: userLoading } = useQuery<UserProfile>({
     queryKey: ['user', username],
     queryFn: async () => {
       const res = await fetch(`/api/users/${username}`);
@@ -18,7 +35,7 @@ export default function UserProfilePage() {
     enabled: !!username,
   });
 
-  const { data: predictions = [], isLoading: predictionsLoading, error: predictionsError } = useQuery({
+  const { data: predictions = [], isLoading: predictionsLoading } = useQuery<Prediction[]>({
     queryKey: ['predictions', username],
     queryFn: async () => {
       const res = await fetch(`/api/users/${username}/predictions`);
@@ -42,24 +59,12 @@ export default function UserProfilePage() {
     );
   }
 
-  if (userError || predictionsError) {
+  if (!user) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
           <CardContent className="p-6">
-            <p className="text-center text-red-500">Error loading profile data</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!userLoading && !user) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-center">User not found</p>
+            <p className="text-center text-red-500">User not found</p>
           </CardContent>
         </Card>
       </div>
@@ -74,22 +79,36 @@ export default function UserProfilePage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold mb-2">Statistics</h2>
-              <p>Total Points: {user.points || 0}</p>
-              <p>Correct Predictions: {user.correctPredictions || 0}</p>
-              <p>Total Matches: {user.totalMatches || 0}</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-sm text-neutral-600">Total Points</p>
+                  <p className="text-2xl font-bold">{user.points || 0}</p>
+                </div>
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-sm text-neutral-600">Correct Predictions</p>
+                  <p className="text-2xl font-bold">{user.correctPredictions || 0}</p>
+                </div>
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-sm text-neutral-600">Total Matches</p>
+                  <p className="text-2xl font-bold">{user.totalMatches || 0}</p>
+                </div>
+              </div>
             </div>
             <div>
               <h2 className="text-xl font-semibold mb-2">Recent Predictions</h2>
               {predictions.length > 0 ? (
-                <ul className="space-y-2">
-                  {predictions.map((prediction: any) => (
-                    <li key={prediction.id} className="border p-2 rounded">
-                      {prediction.matchTitle}: {prediction.prediction}
-                    </li>
+                <div className="space-y-2">
+                  {predictions.map((prediction) => (
+                    <div key={prediction.id} className="border p-4 rounded-lg">
+                      <p className="font-medium">{prediction.matchTitle}</p>
+                      <p className="text-sm text-neutral-600">Prediction: {prediction.prediction}</p>
+                      <p className="text-sm text-neutral-600">Result: {prediction.result}</p>
+                      <p className="text-xs text-neutral-400">{new Date(prediction.createdAt).toLocaleDateString()}</p>
+                    </div>
                   ))}
-                </ul>
+                </div>
               ) : (
-                <p>No predictions yet</p>
+                <p className="text-neutral-600">No predictions yet</p>
               )}
             </div>
           </div>
