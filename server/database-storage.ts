@@ -419,7 +419,17 @@ export class DatabaseStorage implements IStorage {
       if (!leaderboardUser) continue;
       
       leaderboardUser.totalMatches++;
+      leaderboardUser.correctMatchPredictions = leaderboardUser.correctMatchPredictions || 0;
+      leaderboardUser.correctTossPredictions = leaderboardUser.correctTossPredictions || 0;
       
+      // Track match and toss predictions separately
+      if (match.matchWinnerId === prediction.predictedMatchWinnerId) {
+        leaderboardUser.correctMatchPredictions++;
+      }
+      if (match.tossWinnerId === prediction.predictedTossWinnerId) {
+        leaderboardUser.correctTossPredictions++;
+      }
+
       // Check if toss prediction was correct
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
         leaderboardUser.correctPredictions++;

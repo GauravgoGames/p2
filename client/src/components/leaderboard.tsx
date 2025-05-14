@@ -81,8 +81,9 @@ const Leaderboard = () => {
                 <tr className="text-left text-sm font-medium text-neutral-500 border-b border-neutral-200">
                   <th className="pb-3 pl-4">Rank</th>
                   <th className="pb-3">Player</th>
-                  <th className="pb-3">Matches Participated</th>
-                  <th className="pb-3">Predictions Made</th>
+                  <th className="pb-3">Matches</th>
+                  <th className="pb-3">Predictions</th>
+                  <th className="pb-3">Strike Rate</th>
                   <th className="pb-3 pr-4">Points</th>
                 </tr>
               </thead>
@@ -156,8 +157,17 @@ const Leaderboard = () => {
                       <td className="py-4">
                         <div className="flex flex-col">
                           <span className="font-medium">{entry.correctPredictions}</span>
-                          <span className="text-xs text-neutral-500">{entry.correctPredictions}/{entry.totalMatches*2} predictions</span>
+                          <div className="flex flex-col text-xs text-neutral-500">
+                            <span>Match: {entry.correctMatchPredictions}/{entry.totalMatches}</span>
+                            <span>Toss: {entry.correctTossPredictions}/{entry.totalMatches}</span>
+                          </div>
                         </div>
+                      </td>
+                      <td className="py-4">
+                        <div className="font-medium text-primary">
+                          {((entry.correctMatchPredictions/entry.totalMatches + entry.correctTossPredictions/entry.totalMatches) * 50).toFixed(1)}%
+                        </div>
+                        <span className="text-xs text-neutral-500">Strike Rate</span>
                       </td>
                       <td className="py-4 pr-4 font-medium text-primary">{entry.points}</td>
                     </tr>
