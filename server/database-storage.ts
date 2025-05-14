@@ -420,15 +420,26 @@ export class DatabaseStorage implements IStorage {
       
       leaderboardUser.totalMatches++;
       
+      // Initialize stats if not exists
+      leaderboardUser.correctWinnerPredictions = leaderboardUser.correctWinnerPredictions || 0;
+      leaderboardUser.correctTossPredictions = leaderboardUser.correctTossPredictions || 0;
+      
       // Check if toss prediction was correct
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
+        leaderboardUser.correctTossPredictions++;
         leaderboardUser.correctPredictions++;
       }
       
       // Check if match winner prediction was correct
       if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
+        leaderboardUser.correctWinnerPredictions++;
         leaderboardUser.correctPredictions++;
       }
+      
+      // Calculate percentages
+      leaderboardUser.winnerPredictionAccuracy = (leaderboardUser.correctWinnerPredictions / leaderboardUser.totalMatches * 100).toFixed(1);
+      leaderboardUser.tossPredictionAccuracy = (leaderboardUser.correctTossPredictions / leaderboardUser.totalMatches * 100).toFixed(1);
+      leaderboardUser.strikeRate = ((Number(leaderboardUser.winnerPredictionAccuracy) + Number(leaderboardUser.tossPredictionAccuracy)) / 2).toFixed(1);
     }
     
     // Sort by points (descending) and then by correct predictions (descending)

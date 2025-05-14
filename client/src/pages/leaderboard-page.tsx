@@ -249,23 +249,23 @@ const LeaderboardPage = () => {
                         <td className="py-4">{entry.totalMatches}</td>
                         <td className="py-4">
                           <div className="flex flex-col">
-                            <span className="font-medium">{entry.correctWinnerPredictions}</span>
+                            <span className="font-medium">{entry.correctWinnerPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {((entry.correctWinnerPredictions / entry.totalMatches) * 100).toFixed(1)}%
+                              {entry.winnerPredictionAccuracy || '0.0'}%
                             </span>
                           </div>
                         </td>
                         <td className="py-4">
                           <div className="flex flex-col">
-                            <span className="font-medium">{entry.correctTossPredictions}</span>
+                            <span className="font-medium">{entry.correctTossPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {((entry.correctTossPredictions / entry.totalMatches) * 100).toFixed(1)}%
+                              {entry.tossPredictionAccuracy || '0.0'}%
                             </span>
                           </div>
                         </td>
                         <td className="py-4">
-                          <Badge variant="outline" className={`font-semibold ${Number(calculateStrikeRate(entry)) > 50 ? 'text-green-600 border-green-600' : 'text-orange-600 border-orange-600'}`}>
-                            {calculateStrikeRate(entry)}%
+                          <Badge variant="outline" className={`font-semibold ${Number(entry.strikeRate || 0) > 50 ? 'text-green-600 border-green-600' : 'text-orange-600 border-orange-600'}`}>
+                            {entry.strikeRate || '0.0'}%
                           </Badge>
                         </td>
                         <td className="py-4 pr-4">
