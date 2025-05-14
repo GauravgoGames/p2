@@ -26,7 +26,7 @@ const LeaderboardPage = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [timeframe, setTimeframe] = useState('weekly');
-  // Using compact view only
+  const view = 'compact'; // Set default view as compact
 
   const { data: leaderboard, isLoading } = useQuery<LeaderboardUser[]>({
     queryKey: ['/api/leaderboard', timeframe],
