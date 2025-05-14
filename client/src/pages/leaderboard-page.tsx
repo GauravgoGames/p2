@@ -169,12 +169,12 @@ const LeaderboardPage = () => {
 
                         return (
                           <td key={match.id} className={`py-2 px-3 text-center text-sm font-medium ${
+                            !match.status || match.status !== 'completed' ? 'bg-neutral-50 text-neutral-600' :
                             points === 2 ? 'bg-green-100 text-green-800' : 
                             points === 1 ? 'bg-orange-100 text-orange-800' : 
-                            match.status === 'completed' ? 'bg-red-100 text-red-800' : 
-                            'bg-neutral-50 text-neutral-600'
+                            'bg-red-100 text-red-800'
                           }`}>
-                            {predictedTeam ? predictedTeam.name.substring(0, 3).toUpperCase() : '-'}
+                            {predictedTeam ? `${predictedTeam.name.substring(0, 3).toUpperCase()} (${points})` : '-'}
                           </td>
                         );
                       })}
@@ -246,7 +246,7 @@ const LeaderboardPage = () => {
                           <div className="flex flex-col">
                             <span className="font-medium">{entry.correctWinnerPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100).toFixed(1)}%
+                              {entry.totalMatches > 0 ? ((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100).toFixed(1) : '0.0'}%
                             </span>
                           </div>
                         </td>
@@ -254,16 +254,16 @@ const LeaderboardPage = () => {
                           <div className="flex flex-col">
                             <span className="font-medium">{entry.correctTossPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {((entry.correctTossPredictions || 0) / entry.totalMatches * 100).toFixed(1)}%
+                              {entry.totalMatches > 0 ? ((entry.correctTossPredictions || 0) / entry.totalMatches * 100).toFixed(1) : '0.0'}%
                             </span>
                           </div>
                         </td>
                         <td className="py-4">
                           <Badge variant="outline" className={`font-semibold ${
-                            Number(entry.strikeRate || 0) > 50 
+                            Number(calculateStrikeRate(entry)) > 50 
                             ? 'text-green-600 border-green-600' 
                             : 'text-orange-600 border-orange-600'}`}>
-                            {entry.strikeRate || '0.0'}%
+                            {calculateStrikeRate(entry)}%
                           </Badge>
                         </td>
                         <td className="py-4 pr-4">
