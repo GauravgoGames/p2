@@ -184,26 +184,29 @@ const LeaderboardPage = () => {
         <h2 className="text-xl font-bold mb-6">Performance Comparison</h2>
         <ChartContainer
           config={{
-            matchWinner: { color: '#4CAF50', label: 'Match Winner' },
-            tossWinner: { color: '#2196F3', label: 'Toss Winner' },
-            successRate: { color: '#FF9800', label: 'Success Rate' }
+            strikeRate: { 
+              color: '#FF9800',
+              label: 'Strike Rate',
+              colors: ['#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722']
+            }
           }}
           className="h-[400px]"
         >
-          <BarChart data={filteredUsers().slice(0, 10).map(user => ({
+          <BarChart data={filteredUsers().slice(0, 10).map((user, index) => ({
             name: user.displayName || user.username,
-            matchWinner: Math.floor(user.correctPredictions/2),
-            tossWinner: Math.ceil(user.correctPredictions/2),
-            successRate: Number(((user.correctPredictions/(user.totalMatches*2))*100).toFixed(1))
+            strikeRate: Number(((user.correctPredictions/(user.totalMatches*2))*100).toFixed(1)),
+            fill: ['#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722'][index]
           }))}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-            <YAxis />
+            <YAxis label={{ value: 'Strike Rate (%)', angle: -90, position: 'insideLeft' }} />
             <Tooltip content={<ChartTooltipContent />} />
             <Legend content={<ChartLegendContent />} />
-            <Bar dataKey="matchWinner" fill="var(--color-matchWinner)" />
-            <Bar dataKey="tossWinner" fill="var(--color-tossWinner)" />
-            <Bar dataKey="successRate" fill="var(--color-successRate)" />
+            <Bar dataKey="strikeRate" fill="var(--color-strikeRate)">
+              {filteredUsers().slice(0, 10).map((_, index) => (
+                <Cell key={`cell-${index}`} fill={['#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722'][index]} />
+              ))}
+            </Bar>
           </BarChart>
         </ChartContainer>
       </div>
