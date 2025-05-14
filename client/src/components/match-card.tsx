@@ -382,6 +382,25 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 </div>
                 Who will win the toss?
               </div>
+
+              {/* Prediction Meter */}
+              <div className="mb-4 px-2">
+                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
+                  <span>{match.predictionStats?.tossWinner.team1Count || 0} votes</span>
+                  <span>{match.predictionStats?.tossWinner.team2Count || 0} votes</span>
+                </div>
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full"
+                    style={{
+                      width: '100%',
+                      background: `linear-gradient(to right, 
+                        #22c55e ${(match.predictionStats?.tossWinner.team1Count || 0) / ((match.predictionStats?.tossWinner.team1Count || 0) + (match.predictionStats?.tossWinner.team2Count || 0) || 1) * 100}%, 
+                        #ef4444 ${(match.predictionStats?.tossWinner.team1Count || 0) / ((match.predictionStats?.tossWinner.team1Count || 0) + (match.predictionStats?.tossWinner.team2Count || 0) || 1) * 100}%)`
+                    }}
+                  />
+                </div>
+              </div>
               
               <div className="flex space-x-3">
                 <button 
@@ -432,6 +451,25 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                   <span className="text-xs text-white font-bold">2</span>
                 </div>
                 Who will win the match?
+              </div>
+
+              {/* Match Winner Prediction Meter */}
+              <div className="mb-4 px-2">
+                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
+                  <span>{match.predictionStats?.matchWinner.team1Count || 0} votes</span>
+                  <span>{match.predictionStats?.matchWinner.team2Count || 0} votes</span>
+                </div>
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full"
+                    style={{
+                      width: '100%',
+                      background: `linear-gradient(to right, 
+                        #22c55e ${(match.predictionStats?.matchWinner.team1Count || 0) / ((match.predictionStats?.matchWinner.team1Count || 0) + (match.predictionStats?.matchWinner.team2Count || 0) || 1) * 100}%, 
+                        #ef4444 ${(match.predictionStats?.matchWinner.team1Count || 0) / ((match.predictionStats?.matchWinner.team1Count || 0) + (match.predictionStats?.matchWinner.team2Count || 0) || 1) * 100}%)`
+                    }}
+                  />
+                </div>
               </div>
               
               <div className="flex space-x-3">
