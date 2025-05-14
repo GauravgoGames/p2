@@ -29,6 +29,8 @@ const profileUpdateSchema = z.object({
   path: ["confirmPassword"],
 });
 
+type ProfileUpdateFields = z.infer<typeof profileUpdateSchema>;
+
 export default function ProfileUpdatePage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -36,18 +38,17 @@ export default function ProfileUpdatePage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const form = useForm<z.infer<typeof profileUpdateSchema>>({
+  const form = useForm<ProfileUpdateFields>({
     resolver: zodResolver(profileUpdateSchema),
     defaultValues: {
-      displayName: user?.displayName || '',
-      email: user?.email || '',
+      displayName: '',
+      email: '',
       currentPassword: '',
       newPassword: '',
       confirmPassword: '',
     }
   });
 
-  // Update form values when user data is available
   useEffect(() => {
     if (user) {
       form.reset({
@@ -61,11 +62,16 @@ export default function ProfileUpdatePage() {
   }, [user, form]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof profileUpdateSchema>) => {
+    mutationFn: async (data: ProfileUpdateFields) => {
       const res = await fetch('/api/profile/update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          displayName: data.displayName,
+          email: data.email,
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword || undefined
+        }),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -119,7 +125,7 @@ export default function ProfileUpdatePage() {
     },
   });
 
-  const onSubmit = async (data: z.infer<typeof profileUpdateSchema>) => {
+  const onSubmit = async (data: ProfileUpdateFields) => {
     try {
       await updateProfileMutation.mutateAsync(data);
       if (imageFile) {
@@ -134,14 +140,13 @@ export default function ProfileUpdatePage() {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
-      // Create preview URL
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
     }
   };
 
   if (!user) {
-    return null; // or loading state
+    return null;
   }
 
   return (
@@ -155,9 +160,12 @@ export default function ProfileUpdatePage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="flex justify-center mb-6">
                 <div className="relative">
-                  <Avatar className="h-32 w-32 border-4 border-neutral-100">
-                    <AvatarImage src={imagePreview || user.profileImage} />
-                    <AvatarFallback className="text-4xl">
+                  <Avatar className="h-32 w-32">
+                    <AvatarImage 
+                      src={imagePreview || user.profileImage || ''} 
+                      alt={user.displayName || user.username} 
+                    />
+                    <AvatarFallback>
                       {user.displayName?.[0] || user.username[0]}
                     </AvatarFallback>
                   </Avatar>
