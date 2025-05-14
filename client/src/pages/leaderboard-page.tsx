@@ -171,7 +171,7 @@ const LeaderboardPage = () => {
                         const predictedTeam = match.teams?.find((t: any) => t.id === prediction?.predictedMatchWinnerId);
                         const isCorrect = match.status === 'completed' && prediction?.predictedMatchWinnerId === match.matchWinnerId;
                         const isWrong = match.status === 'completed' && prediction?.predictedMatchWinnerId !== match.matchWinnerId;
-                        
+
                         return (
                           <td key={match.id} className={`py-2 px-3 text-center text-sm font-medium ${
                             isCorrect ? 'bg-green-100 text-green-800' : 
@@ -203,7 +203,7 @@ const LeaderboardPage = () => {
                         <th className="pb-3">Winner Predictions</th>
                         <th className="pb-3">Toss Predictions</th>
                         <th className="pb-3">Strike Rate</th>
-                        <th className="pb-3">Points</th>
+                        <th className="pb-3 pr-4">Points</th>
                       </>
                     ) : (
                     <>
@@ -211,7 +211,6 @@ const LeaderboardPage = () => {
                       <th className="pb-3">Predictions</th>
                     </>
                   )}
-                  <th className="pb-3 pr-4">Points</th>
                 </tr>
               </thead>
               <tbody>
@@ -288,11 +287,6 @@ const LeaderboardPage = () => {
                         </td>
                       </>
                     )}
-                    <td className="py-4 pr-4">
-                      <Badge variant="outline" className="font-semibold text-primary border-primary">
-                        {entry.points} pts
-                      </Badge>
-                    </td>
                   </tr>
                 ))}
               </tbody>
