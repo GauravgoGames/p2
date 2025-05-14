@@ -19,17 +19,35 @@ export default function UserProfilePage() {
     },
   });
 
-  const { data: predictions, isLoading: predictionsLoading } = useQuery({
+  const { data: predictions = [], isLoading: predictionsLoading } = useQuery({
     queryKey: ['predictions', username],
     queryFn: async () => {
       const res = await fetch(`/api/users/${username}/predictions`);
       if (!res.ok) throw new Error('Failed to fetch predictions');
       return res.json();
     },
+    enabled: !!user // Only fetch predictions if we have user data
   });
 
   if (userLoading || predictionsLoading) {
-    return <div className="container mx-auto px-4 py-8">Loading...</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="animate-pulse flex space-x-4">
+              <div className="rounded-full bg-gray-200 h-24 w-24"></div>
+              <div className="flex-1 space-y-4 py-1">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (!user) {
@@ -45,7 +63,7 @@ export default function UserProfilePage() {
   }
 
   const correctPredictions = predictions?.filter((p: any) => 
-    p.match.matchWinnerId === p.predictedMatchWinnerId
+    p.match?.matchWinnerId === p.predictedMatchWinnerId
   ).length || 0;
 
   const totalPredictions = predictions?.length || 0;
