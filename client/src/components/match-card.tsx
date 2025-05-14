@@ -53,7 +53,9 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         title: 'Prediction Submitted',
         description: 'Your prediction has been saved successfully',
       });
+      // Invalidate both predictions and matches queries to refresh the stats
       queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
     },
     onError: (error: Error) => {
       toast({
