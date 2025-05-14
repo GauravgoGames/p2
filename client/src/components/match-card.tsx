@@ -413,11 +413,9 @@ const MatchCard = ({ match, userPrediction, tossPredictionCounts, matchPredictio
                       className="w-6 h-6 object-contain rounded-full mr-2"
                     />
                     <span className="text-sm font-medium">{match.team1.name}</span>
-                    {getPredictionCounts('toss', match.team1Id) > 0 && (
-                      <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                        {getPredictionCounts('toss', match.team1Id)} selected
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                      {getPredictionCounts('toss', match.team1Id)} votes
+                    </span>
                   </div>
                 </button>
 
@@ -438,11 +436,9 @@ const MatchCard = ({ match, userPrediction, tossPredictionCounts, matchPredictio
                       className="w-6 h-6 object-contain rounded-full mr-2"
                     />
                     <span className="text-sm font-medium">{match.team2.name}</span>
-                    {getPredictionCounts('toss', match.team2Id) > 0 && (
-                      <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                        {getPredictionCounts('toss', match.team2Id)} selected
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                      {getPredictionCounts('toss', match.team2Id)} votes
+                    </span>
                   </div>
                 </button>
               </div>
@@ -474,11 +470,9 @@ const MatchCard = ({ match, userPrediction, tossPredictionCounts, matchPredictio
                       className="w-6 h-6 object-contain rounded-full mr-2"
                     />
                     <span className="text-sm font-medium">{match.team1.name}</span>
-                    {getPredictionCounts('match', match.team1Id) > 0 && (
-                      <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                        {getPredictionCounts('match', match.team1Id)} selected
-                      </span>
-                    )}
+                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                      {getPredictionCounts('match', match.team1Id)} votes
+                    </span>
                   </div>
                 </button>
 
@@ -499,11 +493,9 @@ const MatchCard = ({ match, userPrediction, tossPredictionCounts, matchPredictio
                       className="w-6 h-6 object-contain rounded-full mr-2"
                     />
                     <span className="text-sm font-medium">{match.team2.name}</span>
-                     {getPredictionCounts('match', match.team2Id) > 0 && (
-                      <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                        {getPredictionCounts('match', match.team2Id)} selected
-                      </span>
-                    )}
+                     <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                      {getPredictionCounts('match', match.team2Id)} votes
+                    </span>
                   </div>
                 </button>
               </div>
