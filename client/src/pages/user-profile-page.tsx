@@ -1,7 +1,7 @@
 
 import { useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Target, Award } from 'lucide-react';
@@ -26,26 +26,21 @@ export default function UserProfilePage() {
       if (!res.ok) throw new Error('Failed to fetch predictions');
       return res.json();
     },
-    enabled: !!user // Only fetch predictions if we have user data
+    enabled: !!username,
   });
 
   if (userLoading || predictionsLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse flex space-x-4">
-              <div className="rounded-full bg-gray-200 h-24 w-24"></div>
-              <div className="flex-1 space-y-4 py-1">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-gray-200 rounded"></div>
-                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse space-y-4">
+          <div className="h-32 w-32 rounded-full bg-gray-200 mx-auto"/>
+          <div className="h-8 w-48 bg-gray-200 mx-auto"/>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded"/>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -62,28 +57,28 @@ export default function UserProfilePage() {
     );
   }
 
-  const correctPredictions = predictions?.filter((p: any) => 
+  const correctPredictions = predictions.filter((p: any) => 
     p.match?.matchWinnerId === p.predictedMatchWinnerId
-  ).length || 0;
+  ).length;
 
-  const totalPredictions = predictions?.length || 0;
+  const totalPredictions = predictions.length;
   const accuracy = totalPredictions > 0 ? (correctPredictions / totalPredictions * 100).toFixed(1) : '0';
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card className="overflow-hidden">
+      <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col items-center space-y-4">
+          <div className="flex flex-col items-center space-y-6">
             <Avatar className="h-24 w-24 border-4 border-primary/10">
               <AvatarImage src={user.profileImage} />
               <AvatarFallback>
-                {user.username.substring(0, 2).toUpperCase()}
+                {username?.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="text-center">
-              <h1 className="text-2xl font-bold">{user.displayName || user.username}</h1>
-              <p className="text-gray-500 mb-4">@{user.username}</p>
+              <h1 className="text-2xl font-bold">{user.displayName || username}</h1>
+              <p className="text-gray-500">@{username}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
@@ -112,23 +107,23 @@ export default function UserProfilePage() {
               </Card>
             </div>
 
-            {predictions && predictions.length > 0 && (
-              <div className="w-full mt-8">
+            {predictions.length > 0 && (
+              <div className="w-full mt-4">
                 <h2 className="text-xl font-semibold mb-4">Recent Predictions</h2>
                 <div className="space-y-3">
-                  {predictions.slice(0, 5).map((prediction: any) => (
+                  {predictions.map((prediction: any) => (
                     <Card key={prediction.id}>
                       <CardContent className="p-4">
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="font-medium">{prediction.match.team1.name} vs {prediction.match.team2.name}</p>
+                            <p className="font-medium">{prediction.match?.team1?.name} vs {prediction.match?.team2?.name}</p>
                             <p className="text-sm text-gray-500">
-                              Predicted Winner: {prediction.predictedMatchWinner.name}
+                              Predicted Winner: {prediction.predictedMatchWinner?.name}
                             </p>
                           </div>
-                          {prediction.match.status === 'completed' && (
-                            <Badge variant={prediction.match.matchWinnerId === prediction.predictedMatchWinnerId ? "success" : "destructive"}>
-                              {prediction.match.matchWinnerId === prediction.predictedMatchWinnerId ? "Correct" : "Incorrect"}
+                          {prediction.match?.status === 'completed' && (
+                            <Badge variant={prediction.match?.matchWinnerId === prediction.predictedMatchWinnerId ? "success" : "destructive"}>
+                              {prediction.match?.matchWinnerId === prediction.predictedMatchWinnerId ? "Correct" : "Incorrect"}
                             </Badge>
                           )}
                         </div>
