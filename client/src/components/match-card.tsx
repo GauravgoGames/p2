@@ -512,30 +512,6 @@ const predictionMutation = useMutation({
                 Who will win the match?
               </div>
 
-              {/* Toss Winner Prediction Stats */}
-              <div className="mb-4 px-2">
-                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
-                  <span>{predictionStats?.tossWinner?.team1Count || 0} votes</span>
-                  <span>{predictionStats?.tossWinner?.team2Count || 0} votes</span>
-                </div>
-                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full flex">
-                    <div 
-                      className="h-full bg-green-500 transition-all duration-300"
-                      style={{
-                        width: `${predictionStats?.tossWinner?.team1Percentage || 0}%`
-                      }}
-                    />
-                    <div 
-                      className="h-full bg-red-500 transition-all duration-300"
-                      style={{
-                        width: `${predictionStats?.tossWinner?.team2Percentage || 0}%`
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* Match Winner Prediction Stats */}
               <div className="mb-4 px-2">
                 <div className="text-xs text-neutral-500 mb-1 flex justify-between">
