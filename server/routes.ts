@@ -211,51 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add prediction stats endpoint
-  app.get("/api/matches/:id/prediction-stats", async (req, res) => {
-    try {
-      const matchId = parseInt(req.params.id, 10);
-      const match = await storage.getMatchById(matchId);
-
-      if (!match) {
-        return res.status(404).json({ message: "Match not found" });
-      }
-
-      const allPredictions = await storage.getMatchPredictions(matchId);
-
-      let team1TossCount = 0;
-      let team2TossCount = 0;
-      let team1MatchCount = 0;
-      let team2MatchCount = 0;
-
-      (allPredictions || []).forEach(pred => {
-        if (pred.predictedTossWinnerId === match.team1Id) team1TossCount++;
-        if (pred.predictedTossWinnerId === match.team2Id) team2TossCount++;
-        if (pred.predictedMatchWinnerId === match.team1Id) team1MatchCount++;
-        if (pred.predictedMatchWinnerId === match.team2Id) team2MatchCount++;
-      });
-
-      const totalToss = team1TossCount + team2TossCount || 1;
-      const totalMatch = team1MatchCount + team2MatchCount || 1;
-
-      res.json({
-        tossWinner: {
-          team1Percentage: (team1TossCount / totalToss) * 100,
-          team2Percentage: (team2TossCount / totalToss) * 100,
-          team1Count: team1TossCount,
-          team2Count: team2TossCount
-        },
-        matchWinner: {
-          team1Percentage: (team1MatchCount / totalMatch) * 100,
-          team2Percentage: (team2MatchCount / totalMatch) * 100,
-          team1Count: team1MatchCount,
-          team2Count: team2MatchCount
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching prediction stats" });
-    }
-  });
+  
 
   app.post("/api/matches", isAdmin, async (req, res) => {
     try {
@@ -382,7 +338,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create new prediction
       const prediction = await storage.createPrediction(validatedData);
-      res.status(201).json(prediction);
+
+      // Recalculate prediction stats
+      const stats = await storage.getMatchPredictions(validatedData.matchId);
+      let team1TossCount = 0, team2TossCount = 0;
+      let team1MatchCount = 0, team2MatchCount = 0;
+
+      stats.forEach(pred => {
+        if (pred.predictedTossWinnerId === match.team1Id) team1TossCount++;
+        if (pred.predictedTossWinnerId === match.team2Id) team2TossCount++;
+        if (pred.predictedMatchWinnerId === match.team1Id) team1MatchCount++;
+        if (pred.predictedMatchWinnerId === match.team2Id) team2MatchCount++;
+      });
+
+      const totalToss = team1TossCount + team2TossCount || 1;
+      const totalMatch = team1MatchCount + team2MatchCount || 1;
+
+      const response = {
+        prediction,
+        stats: {
+          tossWinner: {
+            team1Percentage: (team1TossCount / totalToss) * 100,
+            team2Percentage: (team2TossCount / totalToss) * 100,
+            team1Count: team1TossCount,
+            team2Count: team2TossCount
+          },
+          matchWinner: {
+            team1Percentage: (team1MatchCount / totalMatch) * 100,
+            team2Percentage: (team2MatchCount / totalMatch) * 100,
+            team1Count: team1MatchCount,
+            team2Count: team2MatchCount
+          }
+        }
+      };
+
+      res.status(201).json(response);
     } catch (error) {
       res.status(400).json({ message: "Invalid prediction data", error });
     }
