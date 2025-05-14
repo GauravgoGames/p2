@@ -53,10 +53,15 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         title: 'Prediction Submitted',
         description: 'Your prediction has been saved successfully',
       });
-      // Invalidate both predictions and match queries to refresh stats
-      queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/matches/${match.id}`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
+      // Invalidate queries and wait for them to complete
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/predictions'] }),
+        queryClient.invalidateQueries({ queryKey: [`/api/matches/${match.id}`] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/matches'] })
+      ]);
+      
+      // Force an immediate refetch of the match data
+      await queryClient.refetchQueries({ queryKey: [`/api/matches/${match.id}`] });
     },
     onError: (error: Error) => {
       toast({

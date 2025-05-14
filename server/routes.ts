@@ -160,18 +160,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Match not found" });
       }
 
-      // Get prediction stats
-      const predictions = await storage.getPredictionStats(id);
+      // Get all predictions for this match
+      const allPredictions = Array.from(storage.predictions.values())
+        .filter(p => p.matchId === id);
+
+      // Calculate prediction stats
       const predictionStats = {
         tossWinner: {
-          team1Count: predictions.tossTeam1Count || 0,
-          team2Count: predictions.tossTeam2Count || 0,
+          team1Count: allPredictions.filter(p => p.predictedTossWinnerId === match.team1Id).length,
+          team2Count: allPredictions.filter(p => p.predictedTossWinnerId === match.team2Id).length,
+          team1Percentage: 0,
+          team2Percentage: 0
         },
         matchWinner: {
-          team1Count: predictions.matchTeam1Count || 0,
-          team2Count: predictions.matchTeam2Count || 0,
+          team1Count: allPredictions.filter(p => p.predictedMatchWinnerId === match.team1Id).length,
+          team2Count: allPredictions.filter(p => p.predictedMatchWinnerId === match.team2Id).length,
+          team1Percentage: 0,
+          team2Percentage: 0
         }
       };
+
+      // Calculate percentages
+      const totalTossVotes = predictionStats.tossWinner.team1Count + predictionStats.tossWinner.team2Count;
+      const totalMatchVotes = predictionStats.matchWinner.team1Count + predictionStats.matchWinner.team2Count;
+
+      if (totalTossVotes > 0) {
+        predictionStats.tossWinner.team1Percentage = (predictionStats.tossWinner.team1Count / totalTossVotes) * 100;
+        predictionStats.tossWinner.team2Percentage = (predictionStats.tossWinner.team2Count / totalTossVotes) * 100;
+      }
+
+      if (totalMatchVotes > 0) {
+        predictionStats.matchWinner.team1Percentage = (predictionStats.matchWinner.team1Count / totalMatchVotes) * 100;
+        predictionStats.matchWinner.team2Percentage = (predictionStats.matchWinner.team2Count / totalMatchVotes) * 100;
+      }
 
       res.json({ ...match, predictionStats });
     } catch (error) {
