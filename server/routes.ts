@@ -246,7 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           team1Percentage: totalMatch ? (team1MatchCount / totalMatch) * 100 : 50,
           team2Percentage: totalMatch ? (team2MatchCount / totalMatch) * 100 : 50
         }
-      });
+      };
+      res.json(response);
     } catch (error) {
       res.status(500).json({ message: "Error fetching prediction stats" });
     }
