@@ -19,7 +19,7 @@ interface LeaderboardUser {
 const Leaderboard = () => {
   const { user } = useAuth();
   const [timeframe, setTimeframe] = useState('weekly');
-  
+
   const { data: leaderboard, isLoading } = useQuery<LeaderboardUser[]>({
     queryKey: ['/api/leaderboard', timeframe],
     queryFn: async ({ queryKey }) => {
@@ -28,23 +28,23 @@ const Leaderboard = () => {
       return res.json();
     }
   });
-  
+
   const handleTimeframeChange = (value: string) => {
     setTimeframe(value);
   };
-  
+
   const findCurrentUserRank = () => {
     if (!user || !leaderboard) return null;
-    
+
     const userRank = leaderboard.findIndex(entry => entry.id === user.id);
     if (userRank === -1) return null;
-    
+
     return {
       rank: userRank + 1,
       ...leaderboard[userRank]
     };
   };
-  
+
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -57,9 +57,9 @@ const Leaderboard = () => {
         return null;
     }
   };
-  
+
   const currentUserRank = findCurrentUserRank();
-  
+
   return (
     <div id="leaderboard" className="mb-10">
       <div className="flex items-center justify-between mb-6">
@@ -72,7 +72,7 @@ const Leaderboard = () => {
           </TabsList>
         </Tabs>
       </div>
-      
+
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="p-4 md:p-6">
           <div className="overflow-x-auto">
@@ -126,7 +126,7 @@ const Leaderboard = () => {
                             </AvatarFallback>
                           </Avatar>
                           <a 
-                            href={`/users/${entry.username}`} 
+                            href={`/users/${entry.username}`}
                             className="font-medium hover:text-primary transition-colors"
                           >
                             {entry.displayName || entry.username}
@@ -155,7 +155,7 @@ const Leaderboard = () => {
                     <td colSpan={5} className="py-4 text-center text-neutral-500">No leaderboard data available</td>
                   </tr>
                 )}
-                
+
                 {/* Show current user if not in top 10 */}
                 {currentUserRank && leaderboard && currentUserRank.rank > 10 && (
                   <>
@@ -176,7 +176,12 @@ const Leaderboard = () => {
                               {currentUserRank.username.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{currentUserRank.displayName || currentUserRank.username}</span>
+                          <a 
+                            href={`/users/${currentUserRank.username}`}
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            {currentUserRank.displayName || currentUserRank.username}
+                          </a>
                           <span className="ml-2 text-xs bg-primary text-white px-2 py-1 rounded">You</span>
                         </div>
                       </td>

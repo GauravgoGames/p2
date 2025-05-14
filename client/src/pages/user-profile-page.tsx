@@ -9,14 +9,27 @@ export default function UserProfilePage() {
   const [, params] = useParams();
   const username = params?.username;
 
-  const { data: user } = useQuery({
+  const { data: user, isError } = useQuery({
     queryKey: ['user', username],
     queryFn: async () => {
       const res = await fetch(`/api/users/${username}`);
       if (!res.ok) throw new Error('Failed to fetch user');
       return res.json();
     },
+    retry: false
   });
+
+  if (isError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-center text-gray-500">User not found</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const { data: predictions } = useQuery({
     queryKey: ['predictions', username],
