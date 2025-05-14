@@ -183,24 +183,36 @@ const MatchCard = ({ match, userPrediction, tossPredictions, matchPredictions }:
     return userPrediction.pointsEarned;
   };
 
-  // Determine expert choices
-  const getExpertChoice = (type: 'toss' | 'match'): number | null => {
+  // Calculate prediction percentages and expert choices
+  const calculatePredictionStats = (type: 'toss' | 'match') => {
     const predictions = type === 'toss' ? tossPredictions : matchPredictions;
-    if (!predictions) return null;
+    if (!predictions) return { expertChoice: null, team1Percentage: 0, team2Percentage: 0 };
 
-    const team1Count = predictions[match.team1Id] || 0;
-    const team2Count = predictions[match.team2Id] || 0;
-    
-    if (team1Count > team2Count && team1Count > 0) {
-      return match.team1Id;
-    } else if (team2Count > team1Count && team2Count > 0) {
-      return match.team2Id;
+    const team1Votes = predictions[match.team1Id] || 0;
+    const team2Votes = predictions[match.team2Id] || 0;
+    const totalVotes = team1Votes + team2Votes;
+
+    if (totalVotes === 0) return { expertChoice: null, team1Percentage: 0, team2Percentage: 0 };
+
+    const team1Percentage = Math.round((team1Votes / totalVotes) * 100);
+    const team2Percentage = Math.round((team2Votes / totalVotes) * 100);
+
+    // Only show expert choice if one team has significantly more votes (>60%)
+    let expertChoice = null;
+    if (team1Percentage > 60) {
+      expertChoice = match.team1Id;
+    } else if (team2Percentage > 60) {
+      expertChoice = match.team2Id;
     }
-    return null; // In case of a tie or no predictions
+
+    return { expertChoice, team1Percentage, team2Percentage };
   };
 
-  const expertTossChoice = getExpertChoice('toss');
-  const expertMatchChoice = getExpertChoice('match');
+  const tossStats = calculatePredictionStats('toss');
+  const matchStats = calculatePredictionStats('match');
+
+  const expertTossChoice = tossStats.expertChoice;
+  const expertMatchChoice = matchStats.expertChoice;
 
   return (
     <div className="match-card bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
@@ -251,13 +263,15 @@ const MatchCard = ({ match, userPrediction, tossPredictions, matchPredictions }:
           
           <div className="team-display flex flex-col items-center relative">
                 {expertTossChoice === match.team1Id && (
-                  <div className="absolute -top-2 -right-2 bg-amber-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10">
-                    Toss Expert Choice
+                  <div className="absolute -top-2 -right-2 bg-amber-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                    {tossStats.team1Percentage}% Expert Pick
                   </div>
                 )}
                 {expertMatchChoice === match.team1Id && (
-                  <div className="absolute -top-6 -right-2 bg-emerald-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10">
-                    Match Expert Choice
+                  <div className="absolute -top-6 -right-2 bg-emerald-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                    {matchStats.team1Percentage}% Expert Pick
                   </div>
                 )}
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
@@ -316,13 +330,15 @@ const MatchCard = ({ match, userPrediction, tossPredictions, matchPredictions }:
           
           <div className="team-display flex flex-col items-center relative">
                 {expertTossChoice === match.team2Id && (
-                  <div className="absolute -top-2 -right-2 bg-amber-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10">
-                    Toss Expert Choice
+                  <div className="absolute -top-2 -right-2 bg-amber-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                    {tossStats.team2Percentage}% Expert Pick
                   </div>
                 )}
                 {expertMatchChoice === match.team2Id && (
-                  <div className="absolute -top-6 -right-2 bg-emerald-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10">
-                    Match Expert Choice
+                  <div className="absolute -top-6 -right-2 bg-emerald-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                    {matchStats.team2Percentage}% Expert Pick
                   </div>
                 )}
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
