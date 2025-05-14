@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Match, Team, Prediction } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
@@ -23,91 +23,37 @@ interface MatchCardProps {
 
 const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
-
+  
   const [predictionState, setPredictionState] = useState({
     predictedTossWinnerId: userPrediction?.predictedTossWinnerId || null,
     predictedMatchWinnerId: userPrediction?.predictedMatchWinnerId || null,
   });
-
+  
   const [countdown, setCountdown] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  const [predictionStats, setPredictionStats] = useState<{
-    tossWinner: {
-      team1Count: number;
-      team2Count: number;
-      team1Percentage: number;
-      team2Percentage: number;
-    };
-    matchWinner: {
-      team1Count: number;
-      team2Count: number;
-      team1Percentage: number;
-      team2Percentage: number;
-    };
-  } | null>(null);
-
-  // Fetch prediction stats
-  const { data: fetchedPredictionStats } = useQuery({
-    queryKey: [`/api/matches/${match.id}/prediction-stats`],
-    queryFn: async () => {
-      const res = await apiRequest('GET', `/api/matches/${match.id}/prediction-stats`);
-      return res;
-    },
-    enabled: !!match.id,
-  });
-
-  useEffect(() => {
-    if (fetchedPredictionStats) {
-      setPredictionStats(fetchedPredictionStats);
-    }
-  }, [fetchedPredictionStats]);
-
-
-  // Remove duplicate prediction stats fetching since we already have the useQuery hook
-  useEffect(() => {
-    if (match.status === 'upcoming' && fetchedPredictionStats) {
-      setPredictionStats(fetchedPredictionStats);
-    }
-  }, [match.status, fetchedPredictionStats]);
-
-  const { toast } = useToast();
-
-const predictionMutation = useMutation({
+  
+  const predictionMutation = useMutation({
     mutationFn: async () => {
       if (!predictionState.predictedTossWinnerId || !predictionState.predictedMatchWinnerId) {
         throw new Error('Please select both toss and match winners');
       }
-
+      
       const predictionData = {
         matchId: match.id,
         predictedTossWinnerId: predictionState.predictedTossWinnerId,
         predictedMatchWinnerId: predictionState.predictedMatchWinnerId
       };
-
-      const response = await apiRequest('POST', '/api/predictions', predictionData);
-      return response;
+      
+      await apiRequest('POST', '/api/predictions', predictionData);
     },
-    onSuccess: async () => {
-      // Show success toast
+    onSuccess: () => {
       toast({
-        title: userPrediction ? 'Prediction Updated' : 'Prediction Submitted',
-        description: userPrediction ? 'Your prediction has been updated successfully' : 'Your prediction has been saved successfully',
+        title: 'Prediction Submitted',
+        description: 'Your prediction has been saved successfully',
       });
-
-      // Invalidate and refetch predictions
-      await queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
-      
-      // Invalidate prediction stats and force a refetch
-      await queryClient.invalidateQueries({ 
-        queryKey: [`/api/matches/${match.id}/prediction-stats`],
-        refetchType: 'active',
-        exact: true
-      });
-      
-      // Fetch fresh prediction stats
-      const res = await apiRequest('GET', `/api/matches/${match.id}/prediction-stats`);
-      setPredictionStats(res);
+      queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
     },
     onError: (error: Error) => {
       toast({
@@ -117,7 +63,7 @@ const predictionMutation = useMutation({
       });
     }
   });
-
+  
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'upcoming':
@@ -130,10 +76,10 @@ const predictionMutation = useMutation({
         return 'default';
     }
   };
-
+  
   const handleTeamSelect = (type: 'toss' | 'match', teamId: number) => {
     if (match.status !== 'upcoming') return;
-
+    
     if (type === 'toss') {
       setPredictionState(prev => ({
         ...prev,
@@ -146,7 +92,7 @@ const predictionMutation = useMutation({
       }));
     }
   };
-
+  
   const handleSubmitPrediction = () => {
     if (!user) {
       toast({
@@ -156,10 +102,10 @@ const predictionMutation = useMutation({
       });
       return;
     }
-
+    
     predictionMutation.mutate();
   };
-
+  
   // Handle match status update when timer hits zero
   const updateMatchStatus = async () => {
     if (match.status === 'upcoming' && timeRemaining <= 0) {
@@ -167,7 +113,7 @@ const predictionMutation = useMutation({
         // Update match status to 'ongoing' when time expires
         await apiRequest('PATCH', `/api/matches/${match.id}/status`, { status: 'ongoing' });
         queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
-
+        
         // Lock predictions for this match
         queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
       } catch (error) {
@@ -183,9 +129,9 @@ const predictionMutation = useMutation({
         const now = new Date();
         const matchTime = new Date(match.matchDate);
         const seconds = differenceInSeconds(matchTime, now);
-
+        
         setTimeRemaining(seconds);
-
+        
         if (seconds <= 0) {
           clearInterval(timer);
           setCountdown('Starting now');
@@ -193,12 +139,12 @@ const predictionMutation = useMutation({
           updateMatchStatus();
           return;
         }
-
+        
         const days = differenceInDays(matchTime, now);
         const hours = differenceInHours(matchTime, now) % 24;
         const minutes = differenceInMinutes(matchTime, now) % 60;
         const remainingSeconds = seconds % 60;
-
+        
         if (days > 0) {
           setCountdown(`${days}d ${hours}h ${minutes}m`);
         } else if (hours > 0) {
@@ -209,7 +155,7 @@ const predictionMutation = useMutation({
           setCountdown(`${remainingSeconds}s`);
         }
       }, 1000);
-
+      
       return () => clearInterval(timer);
     } else if (match.status === 'ongoing') {
       setCountdown('LIVE');
@@ -222,19 +168,19 @@ const predictionMutation = useMutation({
     const matchDate = new Date(date);
     const now = new Date();
     const isToday = matchDate.toDateString() === now.toDateString();
-
+    
     if (isToday) {
       return `Today, ${format(matchDate, 'h:mm a')}`;
     }
-
+    
     return format(matchDate, 'dd MMM, h:mm a');
   };
-
+  
   const getPointsEarned = () => {
     if (!userPrediction || !userPrediction.pointsEarned) return 0;
     return userPrediction.pointsEarned;
   };
-
+  
   return (
     <div className="match-card bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
       <div className="lightning" />
@@ -264,14 +210,14 @@ const predictionMutation = useMutation({
             </Badge>
           </div>
         )}
-
+        
         {/* Tournament and Date Section - Rearranged to prevent overlap */}
         <div className="flex flex-col gap-2 mb-6 mt-8">
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium text-neutral-700">{match.tournamentName}</div>
             <div className="text-sm text-neutral-700">{formatMatchTime(match.matchDate)}</div>
           </div>
-
+          
           {match.status === 'upcoming' && (
             <div className="flex items-center gap-1 w-fit text-sm font-medium text-neutral-700 bg-gray-100 px-2 py-1 rounded-md">
               <Clock className="h-3 w-3 text-primary" />
@@ -279,7 +225,7 @@ const predictionMutation = useMutation({
             </div>
           )}
         </div>
-
+        
         <div className="flex justify-between items-center mb-6">
           <div className="team-display flex flex-col items-center relative">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
@@ -301,7 +247,7 @@ const predictionMutation = useMutation({
               </div>
             )}
           </div>
-
+          
           <div className="vs-badge relative">
             <motion.div 
               className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-primary flex items-center justify-center shadow-lg border-4 border-white overflow-hidden"
@@ -334,7 +280,7 @@ const predictionMutation = useMutation({
               <div className="text-xl font-bold text-white relative z-10">VS</div>
             </motion.div>
           </div>
-
+          
           <div className="team-display flex flex-col items-center relative">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
               <img 
@@ -356,7 +302,7 @@ const predictionMutation = useMutation({
             )}
           </div>
         </div>
-
+        
         {match.status === 'completed' ? (
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
             {/* Match Result Summary */}
@@ -364,7 +310,7 @@ const predictionMutation = useMutation({
               <div className="text-sm text-neutral-500 mb-1">Match Result</div>
               <div className="font-bold text-lg">{match.resultSummary}</div>
             </div>
-
+            
             {userPrediction && (
               <div className="space-y-4">
                 {/* Toss Result */}
@@ -380,7 +326,7 @@ const predictionMutation = useMutation({
                       </div>
                     )}
                   </div>
-
+                  
                   <div className="col-span-1">
                     <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
                     <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
@@ -395,7 +341,7 @@ const predictionMutation = useMutation({
                     </div>
                   </div>
                 </div>
-
+                
                 {/* Match Winner Result */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-1">
@@ -409,7 +355,7 @@ const predictionMutation = useMutation({
                       </div>
                     )}
                   </div>
-
+                  
                   <div className="col-span-1">
                     <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
                     <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
@@ -436,31 +382,7 @@ const predictionMutation = useMutation({
                 </div>
                 Who will win the toss?
               </div>
-
-              {/* Toss Prediction Stats - Visible to all users */}
-              <div className="mb-4 px-2">
-                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
-                  <span>{predictionStats?.tossWinner?.team1Count || 0} votes</span>
-                  <span>{predictionStats?.tossWinner?.team2Count || 0} votes</span>
-                </div>
-                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full flex">
-                    <div 
-                      className="h-full bg-green-500"
-                      style={{
-                        width: `${predictionStats?.tossWinner?.team1Percentage || 0}%`
-                      }}
-                    />
-                    <div 
-                      className="h-full bg-red-500"
-                      style={{
-                        width: `${predictionStats?.tossWinner?.team2Percentage || 0}%`
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
+              
               <div className="flex space-x-3">
                 <button 
                   className={cn(
@@ -481,7 +403,7 @@ const predictionMutation = useMutation({
                     <span className="text-sm font-medium">{match.team1.name}</span>
                   </div>
                 </button>
-
+                
                 <button 
                   className={cn(
                     "prediction-option flex-1 py-3 px-4 rounded-lg text-center transition-all duration-200",
@@ -503,7 +425,7 @@ const predictionMutation = useMutation({
                 </button>
               </div>
             </div>
-
+            
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                 <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
@@ -511,31 +433,7 @@ const predictionMutation = useMutation({
                 </div>
                 Who will win the match?
               </div>
-
-              {/* Match Winner Prediction Stats */}
-              <div className="mb-4 px-2">
-                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
-                  <span>{predictionStats?.matchWinner?.team1Count || 0} votes</span>
-                  <span>{predictionStats?.matchWinner?.team2Count || 0} votes</span>
-                </div>
-                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full flex">
-                    <div 
-                      className="h-full bg-green-500 transition-all duration-300"
-                      style={{
-                        width: `${predictionStats?.matchWinner?.team1Percentage || 0}%`
-                      }}
-                    />
-                    <div 
-                      className="h-full bg-red-500 transition-all duration-300"
-                      style={{
-                        width: `${predictionStats?.matchWinner?.team2Percentage || 0}%`
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
+              
               <div className="flex space-x-3">
                 <button 
                   className={cn(
@@ -556,7 +454,7 @@ const predictionMutation = useMutation({
                     <span className="text-sm font-medium">{match.team1.name}</span>
                   </div>
                 </button>
-
+                
                 <button 
                   className={cn(
                     "prediction-option flex-1 py-3 px-4 rounded-lg text-center transition-all duration-200",
@@ -581,7 +479,7 @@ const predictionMutation = useMutation({
           </div>
         )}
       </div>
-
+      
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-4 flex justify-between items-center rounded-b-xl border-t border-gray-200">
         <div className="text-sm font-medium text-gray-700 flex items-center">
           <div className="bg-white p-1 rounded-full shadow-sm mr-2">
@@ -589,7 +487,7 @@ const predictionMutation = useMutation({
           </div>
           {match.location}
         </div>
-
+        
         {match.status === 'upcoming' ? (
           user ? (
             <Button 
