@@ -1,3 +1,4 @@
+
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,26 +6,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, PieChart, Check, X } from "lucide-react";
 import MatchCard from '@/components/match-card';
-
-interface UserProfile {
-  id: number;
-  username: string;
-  displayName: string;
-  profileImage?: string;
-  points: number;
-}
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ProfilePage() {
+  const { user: currentUser } = useAuth();
   const params = useParams<{ username: string }>();
-  const username = params.username;
+  const username = params.username || currentUser?.username;
 
-  const { data: user, isLoading: userLoading } = useQuery<UserProfile>({
+  const { data: user, isLoading: userLoading } = useQuery({
     queryKey: [`/api/users/${username}`],
     queryFn: async () => {
       const res = await fetch(`/api/users/${username}`);
       if (!res.ok) throw new Error('Failed to fetch user');
       return res.json();
     },
+    enabled: !!username,
     retry: 1
   });
 
