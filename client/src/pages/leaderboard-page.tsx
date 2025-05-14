@@ -98,8 +98,8 @@ const LeaderboardPage = () => {
                 <th className="pb-3 pl-4">Rank</th>
                 <th className="pb-3">Player</th>
                 <th className="pb-3">Matches</th>
-                <th className="pb-3">Predictions</th>
-                <th className="pb-3 pr-4">Points</th>
+                <th className="pb-3">Predictions Stats</th>
+                <th className="pb-3 pr-4">Points & Success Rate</th>
               </tr>
             </thead>
             <tbody>
@@ -149,13 +149,23 @@ const LeaderboardPage = () => {
                   <td className="py-4">
                     <div className="flex flex-col">
                       <span className="font-medium">{entry.correctPredictions}</span>
-                      <span className="text-xs text-neutral-500">{entry.correctPredictions}/{entry.totalMatches*2} predictions</span>
+                      <div className="flex flex-col gap-1 mt-1">
+                        <span className="text-xs text-neutral-500">
+                          Match Winner: {Math.floor(entry.correctPredictions/2)}/{entry.totalMatches}
+                        </span>
+                        <span className="text-xs text-neutral-500">
+                          Toss Winner: {Math.ceil(entry.correctPredictions/2)}/{entry.totalMatches}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="py-4 pr-4">
-                    <Badge variant="outline" className="font-semibold text-primary border-primary">
+                    <Badge variant="outline" className="font-semibold text-primary border-primary mb-2">
                       {entry.points} pts
                     </Badge>
+                    <div className="text-xs text-neutral-500">
+                      Success Rate: {((entry.correctPredictions/(entry.totalMatches*2))*100).toFixed(1)}%
+                    </div>
                   </td>
                 </tr>
               ))}
