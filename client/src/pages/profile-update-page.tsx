@@ -123,6 +123,8 @@ export default function ProfileUpdatePage() {
 
   const updateSecurityMutation = useMutation({
     mutationFn: async (data: SecurityFields) => {
+      let response;
+      
       // Update email separately if changed
       if (data.email !== user?.email) {
         const emailRes = await fetch('/api/profile', {
@@ -131,7 +133,8 @@ export default function ProfileUpdatePage() {
           body: JSON.stringify({ email: data.email }),
         });
         if (!emailRes.ok) {
-          throw new Error('Failed to update email');
+          const errorData = await emailRes.json();
+          throw new Error(errorData.message || 'Failed to update email');
         }
       }
 
@@ -145,12 +148,15 @@ export default function ProfileUpdatePage() {
             newPassword: data.newPassword,
           }),
         });
+        
         if (!passwordRes.ok) {
-          throw new Error('Failed to update password');
+          const errorData = await passwordRes.json();
+          throw new Error(errorData.message || 'Failed to update password');
         }
+        response = await passwordRes.json();
       }
 
-      return { message: 'Security settings updated successfully' };
+      return response || { message: 'Security settings updated successfully' };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });

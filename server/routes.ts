@@ -414,9 +414,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Import comparePasswords and hashPassword from auth.ts
-      const { comparePasswords, hashPassword } = require('./auth');
-      
       const passwordValid = await comparePasswords(currentPassword, user.password);
       if (!passwordValid) {
         return res.status(401).json({ message: "Current password is incorrect" });
@@ -424,11 +421,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Hash new password and update
       const hashedPassword = await hashPassword(newPassword);
-      const updatedUser = await storage.updateUser(userId, { password: hashedPassword });
+      await storage.updateUser(userId, { password: hashedPassword });
       
-      res.json({ message: "Password updated successfully" });
+      res.status(200).json({ message: "Password updated successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Error changing password", error });
+      console.error('Password update error:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Error changing password" });
     }
   });
   
