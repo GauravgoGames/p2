@@ -25,27 +25,27 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [predictionState, setPredictionState] = useState({
     predictedTossWinnerId: userPrediction?.predictedTossWinnerId || null,
     predictedMatchWinnerId: userPrediction?.predictedMatchWinnerId || null,
   });
-  
+
   const [countdown, setCountdown] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
-  
+
   const predictionMutation = useMutation({
     mutationFn: async () => {
       if (!predictionState.predictedTossWinnerId || !predictionState.predictedMatchWinnerId) {
         throw new Error('Please select both toss and match winners');
       }
-      
+
       const predictionData = {
         matchId: match.id,
         predictedTossWinnerId: predictionState.predictedTossWinnerId,
         predictedMatchWinnerId: predictionState.predictedMatchWinnerId
       };
-      
+
       await apiRequest('POST', '/api/predictions', predictionData);
     },
     onSuccess: () => {
@@ -63,7 +63,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       });
     }
   });
-  
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'upcoming':
@@ -76,10 +76,10 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         return 'default';
     }
   };
-  
+
   const handleTeamSelect = (type: 'toss' | 'match', teamId: number) => {
     if (match.status !== 'upcoming') return;
-    
+
     if (type === 'toss') {
       setPredictionState(prev => ({
         ...prev,
@@ -92,7 +92,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       }));
     }
   };
-  
+
   const handleSubmitPrediction = () => {
     if (!user) {
       toast({
@@ -102,10 +102,10 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       });
       return;
     }
-    
+
     predictionMutation.mutate();
   };
-  
+
   // Handle match status update when timer hits zero
   const updateMatchStatus = async () => {
     if (match.status === 'upcoming' && timeRemaining <= 0) {
@@ -113,7 +113,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         // Update match status to 'ongoing' when time expires
         await apiRequest('PATCH', `/api/matches/${match.id}/status`, { status: 'ongoing' });
         queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
-        
+
         // Lock predictions for this match
         queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
       } catch (error) {
@@ -129,9 +129,9 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         const now = new Date();
         const matchTime = new Date(match.matchDate);
         const seconds = differenceInSeconds(matchTime, now);
-        
+
         setTimeRemaining(seconds);
-        
+
         if (seconds <= 0) {
           clearInterval(timer);
           setCountdown('Starting now');
@@ -139,12 +139,12 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           updateMatchStatus();
           return;
         }
-        
+
         const days = differenceInDays(matchTime, now);
         const hours = differenceInHours(matchTime, now) % 24;
         const minutes = differenceInMinutes(matchTime, now) % 60;
         const remainingSeconds = seconds % 60;
-        
+
         if (days > 0) {
           setCountdown(`${days}d ${hours}h ${minutes}m`);
         } else if (hours > 0) {
@@ -155,7 +155,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           setCountdown(`${remainingSeconds}s`);
         }
       }, 1000);
-      
+
       return () => clearInterval(timer);
     } else if (match.status === 'ongoing') {
       setCountdown('LIVE');
@@ -168,19 +168,19 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
     const matchDate = new Date(date);
     const now = new Date();
     const isToday = matchDate.toDateString() === now.toDateString();
-    
+
     if (isToday) {
       return `Today, ${format(matchDate, 'h:mm a')}`;
     }
-    
+
     return format(matchDate, 'dd MMM, h:mm a');
   };
-  
+
   const getPointsEarned = () => {
     if (!userPrediction || !userPrediction.pointsEarned) return 0;
     return userPrediction.pointsEarned;
   };
-  
+
   return (
     <div className="match-card bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
       <div className="lightning" />
@@ -210,14 +210,14 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             </Badge>
           </div>
         )}
-        
+
         {/* Tournament and Date Section - Rearranged to prevent overlap */}
         <div className="flex flex-col gap-2 mb-6 mt-8">
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium text-neutral-700">{match.tournamentName}</div>
             <div className="text-sm text-neutral-700">{formatMatchTime(match.matchDate)}</div>
           </div>
-          
+
           {match.status === 'upcoming' && (
             <div className="flex items-center gap-1 w-fit text-sm font-medium text-neutral-700 bg-gray-100 px-2 py-1 rounded-md">
               <Clock className="h-3 w-3 text-primary" />
@@ -225,7 +225,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-between items-center mb-6">
           <div className="team-display flex flex-col items-center relative">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
@@ -247,7 +247,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               </div>
             )}
           </div>
-          
+
           <div className="vs-badge relative">
             <motion.div 
               className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-primary flex items-center justify-center shadow-lg border-4 border-white overflow-hidden"
@@ -280,7 +280,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               <div className="text-xl font-bold text-white relative z-10">VS</div>
             </motion.div>
           </div>
-          
+
           <div className="team-display flex flex-col items-center relative">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
               <img 
@@ -302,7 +302,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             )}
           </div>
         </div>
-        
+
         {match.status === 'completed' ? (
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
             {/* Match Result Summary */}
@@ -310,7 +310,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               <div className="text-sm text-neutral-500 mb-1">Match Result</div>
               <div className="font-bold text-lg">{match.resultSummary}</div>
             </div>
-            
+
             {userPrediction && (
               <div className="space-y-4">
                 {/* Toss Result */}
@@ -326,7 +326,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="col-span-1">
                     <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
                     <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
@@ -341,7 +341,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Match Winner Result */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-1">
@@ -355,7 +355,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="col-span-1">
                     <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
                     <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
@@ -396,17 +396,14 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-green-500 to-red-500 transition-all duration-300"
                     style={{
-                      width: '100%',
-                      background: `linear-gradient(to right, 
-                        #22c55e ${match.predictionStats?.tossWinner?.team1Percentage || 50}%, 
-                        #ef4444 ${match.predictionStats?.tossWinner?.team1Percentage || 50}%)`
+                      width: `${match.predictionStats?.tossWinner?.team1Percentage || 50}%`
                     }}
                   />
                 </div>
               </div>
-              
+
               <div className="flex space-x-3">
                 <button 
                   className={cn(
@@ -427,7 +424,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                     <span className="text-sm font-medium">{match.team1.name}</span>
                   </div>
                 </button>
-                
+
                 <button 
                   className={cn(
                     "prediction-option flex-1 py-3 px-4 rounded-lg text-center transition-all duration-200",
@@ -449,7 +446,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 </button>
               </div>
             </div>
-            
+
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
                 <div className="flex items-center">
@@ -471,17 +468,14 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 </div>
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-green-500 to-red-500 transition-all duration-300"
                     style={{
-                      width: '100%',
-                      background: `linear-gradient(to right, 
-                        #22c55e ${match.predictionStats?.matchWinner?.team1Percentage || 50}%, 
-                        #ef4444 ${match.predictionStats?.matchWinner?.team1Percentage || 50}%)`
+                      width: `${match.predictionStats?.matchWinner?.team1Percentage || 50}%`
                     }}
                   />
                 </div>
               </div>
-              
+
               <div className="flex space-x-3">
                 <button 
                   className={cn(
@@ -502,7 +496,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                     <span className="text-sm font-medium">{match.team1.name}</span>
                   </div>
                 </button>
-                
+
                 <button 
                   className={cn(
                     "prediction-option flex-1 py-3 px-4 rounded-lg text-center transition-all duration-200",
@@ -527,7 +521,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           </div>
         )}
       </div>
-      
+
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-4 flex justify-between items-center rounded-b-xl border-t border-gray-200">
         <div className="text-sm font-medium text-gray-700 flex items-center">
           <div className="bg-white p-1 rounded-full shadow-sm mr-2">
@@ -535,7 +529,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           </div>
           {match.location}
         </div>
-        
+
         {match.status === 'upcoming' ? (
           user ? (
             <Button 
