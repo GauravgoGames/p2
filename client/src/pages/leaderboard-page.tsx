@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -186,13 +185,14 @@ const LeaderboardPage = () => {
                   <th className="pb-3 pl-4">Rank</th>
                   <th className="pb-3">Player</th>
                   {view === 'detailed' ? (
-                    <>
-                      <th className="pb-3">Matches</th>
-                      <th className="pb-3">Winner Predictions</th>
-                      <th className="pb-3">Toss Predictions</th>
-                      <th className="pb-3">Strike Rate</th>
-                    </>
-                  ) : (
+                      <>
+                        <th className="pb-3">Matches</th>
+                        <th className="pb-3">Winner Predictions</th>
+                        <th className="pb-3">Toss Predictions</th>
+                        <th className="pb-3">Strike Rate</th>
+                        <th className="pb-3">Points</th>
+                      </>
+                    ) : (
                     <>
                       <th className="pb-3">Matches</th>
                       <th className="pb-3">Predictions</th>
@@ -253,6 +253,11 @@ const LeaderboardPage = () => {
                         <td className="py-4">
                           <Badge variant="outline" className={`font-semibold ${Number(calculateStrikeRate(entry)) > 50 ? 'text-green-600 border-green-600' : 'text-orange-600 border-orange-600'}`}>
                             {calculateStrikeRate(entry)}%
+                          </Badge>
+                        </td>
+                        <td className="py-4 pr-4">
+                          <Badge variant="outline" className="font-semibold text-primary border-primary">
+                            {entry.points} pts
                           </Badge>
                         </td>
                       </>
