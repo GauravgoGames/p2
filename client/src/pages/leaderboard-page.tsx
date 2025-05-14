@@ -251,7 +251,7 @@ const LeaderboardPage = () => {
                           <div className="flex flex-col">
                             <span className="font-medium">{entry.correctWinnerPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {entry.winnerPredictionAccuracy || '0.0'}%
+                              {((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100).toFixed(1)}%
                             </span>
                           </div>
                         </td>
@@ -259,13 +259,18 @@ const LeaderboardPage = () => {
                           <div className="flex flex-col">
                             <span className="font-medium">{entry.correctTossPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {entry.tossPredictionAccuracy || '0.0'}%
+                              {((entry.correctTossPredictions || 0) / entry.totalMatches * 100).toFixed(1)}%
                             </span>
                           </div>
                         </td>
                         <td className="py-4">
-                          <Badge variant="outline" className={`font-semibold ${Number(entry.strikeRate || 0) > 50 ? 'text-green-600 border-green-600' : 'text-orange-600 border-orange-600'}`}>
-                            {entry.strikeRate || '0.0'}%
+                          <Badge variant="outline" className={`font-semibold ${
+                            ((((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100) + 
+                            ((entry.correctTossPredictions || 0) / entry.totalMatches * 100)) / 2) > 50 
+                            ? 'text-green-600 border-green-600' 
+                            : 'text-orange-600 border-orange-600'}`}>
+                            {(((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100 + 
+                               (entry.correctTossPredictions || 0) / entry.totalMatches * 100) / 2).toFixed(1)}%
                           </Badge>
                         </td>
                         <td className="py-4 pr-4">
