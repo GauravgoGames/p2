@@ -71,7 +71,9 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
     }
   }, [match.status, fetchedPredictionStats]);
 
-  const predictionMutation = useMutation({
+  const { toast } = useToast();
+
+const predictionMutation = useMutation({
     mutationFn: async () => {
       if (!predictionState.predictedTossWinnerId || !predictionState.predictedMatchWinnerId) {
         throw new Error('Please select both toss and match winners');
@@ -83,10 +85,11 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         predictedMatchWinnerId: predictionState.predictedMatchWinnerId
       };
 
-      await apiRequest('POST', '/api/predictions', predictionData);
+      const response = await apiRequest('POST', '/api/predictions', predictionData);
+      return response;
     },
     onSuccess: async () => {
-      const { toast } = useToast();
+      // Show success toast
       toast({
         title: userPrediction ? 'Prediction Updated' : 'Prediction Submitted',
         description: userPrediction ? 'Your prediction has been updated successfully' : 'Your prediction has been saved successfully',
@@ -95,14 +98,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       // Invalidate and refetch predictions
       await queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
       
-      // Fetch fresh prediction stats
-      try {
-        const res = await apiRequest('GET', `/api/matches/${match.id}/prediction-stats`);
-        const newStats = await res.json();
-        setPredictionStats(newStats);
-      } catch (error) {
-        console.error('Failed to fetch prediction stats:', error);
-      }
+      // Invalidate prediction stats to trigger refresh
+      await queryClient.invalidateQueries({ queryKey: [`/api/matches/${match.id}/prediction-stats`] });
     },
     onError: (error: Error) => {
       toast({
