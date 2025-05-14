@@ -151,6 +151,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get prediction statistics for a match
+  app.get("/api/matches/:id/prediction-stats", async (req, res) => {
+    try {
+      const matchId = parseInt(req.params.id, 10);
+      const predictions = await storage.getMatchPredictions(matchId);
+      
+      let team1TossCount = 0;
+      let team2TossCount = 0;
+      let team1MatchCount = 0;
+      let team2MatchCount = 0;
+      
+      predictions.forEach(pred => {
+        if (pred.predictedTossWinnerId === match.team1Id) team1TossCount++;
+        if (pred.predictedTossWinnerId === match.team2Id) team2TossCount++;
+        if (pred.predictedMatchWinnerId === match.team1Id) team1MatchCount++;
+        if (pred.predictedMatchWinnerId === match.team2Id) team2MatchCount++;
+      });
+      
+      const totalToss = team1TossCount + team2TossCount;
+      const totalMatch = team1MatchCount + team2MatchCount;
+      
+      res.json({
+        tossWinner: {
+          team1Percentage: totalToss ? (team1TossCount / totalToss) * 100 : 50,
+          team2Percentage: totalToss ? (team2TossCount / totalToss) * 100 : 50,
+          team1Count: team1TossCount,
+          team2Count: team2TossCount
+        },
+        matchWinner: {
+          team1Percentage: totalMatch ? (team1MatchCount / totalMatch) * 100 : 50,
+          team2Percentage: totalMatch ? (team2MatchCount / totalMatch) * 100 : 50,
+          team1Count: team1MatchCount,
+          team2Count: team2MatchCount
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching prediction stats" });
+    }
+  });
+
   app.get("/api/matches/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
