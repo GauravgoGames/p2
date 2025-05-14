@@ -98,8 +98,16 @@ const predictionMutation = useMutation({
       // Invalidate and refetch predictions
       await queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
       
-      // Invalidate prediction stats to trigger refresh
-      await queryClient.invalidateQueries({ queryKey: [`/api/matches/${match.id}/prediction-stats`] });
+      // Invalidate prediction stats and force a refetch
+      await queryClient.invalidateQueries({ 
+        queryKey: [`/api/matches/${match.id}/prediction-stats`],
+        refetchType: 'active',
+        exact: true
+      });
+      
+      // Fetch fresh prediction stats
+      const res = await apiRequest('GET', `/api/matches/${match.id}/prediction-stats`);
+      setPredictionStats(res);
     },
     onError: (error: Error) => {
       toast({
