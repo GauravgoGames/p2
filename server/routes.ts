@@ -13,7 +13,7 @@ import {
 } from "@shared/schema";
 import { uploadTeamLogo, uploadUserProfile, uploadSiteLogo, getPublicUrl } from "./upload";
 import { db } from "./db";
-import { predictions } from "./db/schema";
+import { predictions } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 
 // Helper: Admin authorization middleware
