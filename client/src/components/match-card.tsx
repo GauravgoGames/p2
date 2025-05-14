@@ -423,12 +423,9 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 </div>
                 <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full"
+                    className="h-full bg-gradient-to-r from-green-500 to-red-500"
                     style={{
-                      width: '100%',
-                      background: `linear-gradient(to right, 
-                        #22c55e ${predictionStats?.tossWinner?.team1Percentage || 0}%, 
-                        #ef4444 ${predictionStats?.tossWinner?.team2Percentage || 0}%)`
+                      width: `${predictionStats?.tossWinner?.team1Percentage || 50}%`
                     }}
                   />
                 </div>
