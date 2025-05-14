@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Match, Team, Prediction } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
@@ -23,7 +23,6 @@ interface MatchCardProps {
 
 const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [predictionState, setPredictionState] = useState({
@@ -47,6 +46,22 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       team2Percentage: number;
     };
   } | null>(null);
+
+  // Fetch prediction stats
+  const { data: fetchedPredictionStats } = useQuery({
+    queryKey: [`/api/matches/${match.id}/prediction-stats`],
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/matches/${match.id}/prediction-stats`);
+      return res;
+    },
+    enabled: !!match.id,
+  });
+
+  useEffect(() => {
+    if (fetchedPredictionStats) {
+      setPredictionStats(fetchedPredictionStats);
+    }
+  }, [fetchedPredictionStats]);
 
 
   useEffect(() => {
@@ -86,6 +101,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
       queryClient.invalidateQueries({ queryKey: [`/api/predictions/stats?matchId=${match.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/matches/${match.id}/prediction-stats`] });
     },
     onError: (error: Error) => {
       toast({
