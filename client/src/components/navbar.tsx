@@ -18,7 +18,7 @@ const Navbar = () => {
   const { user, logoutMutation } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
-  
+
   // Fetch site logo
   const { data: logoData } = useQuery({
     queryKey: ['/api/settings/siteLogo'],
@@ -35,7 +35,7 @@ const Navbar = () => {
     retry: false,
     refetchOnWindowFocus: true,
   });
-  
+
   // Update site logo when data changes
   useEffect(() => {
     if (logoData && logoData.value) {
@@ -100,13 +100,21 @@ const Navbar = () => {
               Help
             </div>
             {user && (
-              <div 
-                onClick={() => window.location.href = '/profile'}
-                className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/profile' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
-              >
-                My Profile
-              </div>
-            )}
+                <>
+                  <div 
+                    onClick={() => window.location.href = '/profile'}
+                    className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/profile' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
+                  >
+                    My Profile
+                  </div>
+                  <div 
+                    onClick={() => window.location.href = '/profile/update'}
+                    className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/profile/update' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
+                  >
+                    Update Profile
+                  </div>
+                </>
+              )}
           </div>
           <div className="flex items-center">
             <div className="hidden md:block">

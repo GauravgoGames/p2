@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,8 +17,8 @@ const profileUpdateSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   email: z.string().email("Invalid email format"),
   currentPassword: z.string().min(6, "Password must be at least 6 characters"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters").optional(),
-  confirmPassword: z.string().optional(),
+  newPassword: z.string().min(6, "Password must be at least 6 characters").optional().or(z.string().length(0)),
+  confirmPassword: z.string().optional().or(z.string().length(0)),
 }).refine((data) => {
   if (data.newPassword && data.newPassword !== data.confirmPassword) {
     return false;
@@ -33,6 +33,7 @@ export default function ProfileUpdatePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const form = useForm<z.infer<typeof profileUpdateSchema>>({
@@ -43,8 +44,21 @@ export default function ProfileUpdatePage() {
       currentPassword: '',
       newPassword: '',
       confirmPassword: '',
-    },
+    }
   });
+
+  // Update form values when user data is available
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        displayName: user.displayName || '',
+        email: user.email || '',
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    }
+  }, [user, form]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: z.infer<typeof profileUpdateSchema>) => {
@@ -53,14 +67,24 @@ export default function ProfileUpdatePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to update profile');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to update profile');
+      }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       toast({
         title: 'Success',
         description: 'Profile updated successfully',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
       });
     },
   });
@@ -73,14 +97,24 @@ export default function ProfileUpdatePage() {
         method: 'POST',
         body: formData,
       });
-      if (!res.ok) throw new Error('Failed to upload image');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to upload image');
+      }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       toast({
         title: 'Success',
         description: 'Profile image updated successfully',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
       });
     },
   });
@@ -92,11 +126,7 @@ export default function ProfileUpdatePage() {
         await uploadImageMutation.mutateAsync(imageFile);
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update profile',
-        variant: 'destructive',
-      });
+      // Error is handled by mutation callbacks
     }
   };
 
@@ -104,8 +134,15 @@ export default function ProfileUpdatePage() {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
     }
   };
+
+  if (!user) {
+    return null; // or loading state
+  }
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-8">
@@ -119,9 +156,9 @@ export default function ProfileUpdatePage() {
               <div className="flex justify-center mb-6">
                 <div className="relative">
                   <Avatar className="h-32 w-32 border-4 border-neutral-100">
-                    <AvatarImage src={user?.profileImage} />
+                    <AvatarImage src={imagePreview || user.profileImage} />
                     <AvatarFallback className="text-4xl">
-                      {user?.displayName?.[0] || user?.username[0]}
+                      {user.displayName?.[0] || user.username[0]}
                     </AvatarFallback>
                   </Avatar>
                   <label 
