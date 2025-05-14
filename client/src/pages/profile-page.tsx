@@ -1,7 +1,12 @@
 
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Camera } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Trophy, PieChart, Check, X } from "lucide-react";
@@ -12,6 +17,8 @@ export default function ProfilePage() {
   const { user: currentUser } = useAuth();
   const params = useParams<{ username: string }>();
   const username = params.username || currentUser?.username;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: [`/api/users/${username}`],
@@ -79,14 +86,178 @@ export default function ProfilePage() {
         <div className="lg:col-span-1">
           <Card>
             <CardContent className="p-6">
-              <div className="flex flex-col items-center">
-                <Avatar className="h-32 w-32 border-4 border-neutral-100">
-                  <AvatarImage src={user.profileImage} />
-                  <AvatarFallback className="text-4xl">
-                    {user.displayName?.[0] || user.username[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <h1 className="text-2xl font-bold mt-4">{user.displayName || user.username}</h1>
+              <div className="flex flex-col items-center space-y-4">
+                <div className="relative">
+                  <Avatar className="h-32 w-32 border-4 border-neutral-100">
+                    <AvatarImage src={user.profileImage} />
+                    <AvatarFallback className="text-4xl">
+                      {user.displayName?.[0] || user.username[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label htmlFor="profile-upload" className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90">
+                    <input
+                      id="profile-upload"
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        
+                        const formData = new FormData();
+                        formData.append('image', file);
+                        
+                        try {
+                          const res = await fetch('/api/profile/upload-image', {
+                            method: 'POST',
+                            body: formData,
+                          });
+                          
+                          if (!res.ok) throw new Error('Failed to upload image');
+                          
+                          const data = await res.json();
+                          queryClient.invalidateQueries(['/api/user']);
+                          toast({
+                            title: "Success",
+                            description: "Profile image updated successfully",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update profile image",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    />
+                    <Camera className="h-5 w-5" />
+                  </label>
+                </div>
+                
+                <div className="w-full max-w-sm space-y-4">
+                  <div>
+                    <Label htmlFor="displayName">Display Name</Label>
+                    <Input
+                      id="displayName"
+                      defaultValue={user.displayName || ''}
+                      className="mt-1"
+                      onBlur={async (e) => {
+                        try {
+                          await fetch('/api/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ displayName: e.target.value }),
+                          });
+                          queryClient.invalidateQueries(['/api/user']);
+                          toast({
+                            title: "Success",
+                            description: "Display name updated successfully",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update display name",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      defaultValue={user.email || ''}
+                      className="mt-1"
+                      onBlur={async (e) => {
+                        try {
+                          await fetch('/api/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: e.target.value }),
+                          });
+                          queryClient.invalidateQueries(['/api/user']);
+                          toast({
+                            title: "Success",
+                            description: "Email updated successfully",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update email",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Password</Label>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        const dialog = document.createElement('dialog');
+                        dialog.innerHTML = `
+                          <div class="p-4 max-w-sm mx-auto">
+                            <h3 class="text-lg font-bold mb-4">Change Password</h3>
+                            <form method="dialog" class="space-y-4">
+                              <div>
+                                <label class="block text-sm font-medium mb-1">Current Password</label>
+                                <input type="password" id="currentPassword" class="w-full p-2 border rounded" required />
+                              </div>
+                              <div>
+                                <label class="block text-sm font-medium mb-1">New Password</label>
+                                <input type="password" id="newPassword" class="w-full p-2 border rounded" required />
+                              </div>
+                              <div class="flex justify-end gap-2">
+                                <button type="button" class="px-4 py-2 border rounded" onclick="this.closest('dialog').close()">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-primary text-white rounded">Update</button>
+                              </div>
+                            </form>
+                          </div>
+                        `;
+                        
+                        dialog.addEventListener('submit', async (e) => {
+                          e.preventDefault();
+                          const currentPassword = (dialog.querySelector('#currentPassword') as HTMLInputElement).value;
+                          const newPassword = (dialog.querySelector('#newPassword') as HTMLInputElement).value;
+                          
+                          try {
+                            const res = await fetch('/api/profile/change-password', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ currentPassword, newPassword }),
+                            });
+                            
+                            if (!res.ok) throw new Error('Failed to update password');
+                            
+                            toast({
+                              title: "Success",
+                              description: "Password updated successfully",
+                            });
+                            dialog.close();
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to update password",
+                              variant: "destructive",
+                            });
+                          }
+                        });
+                        
+                        document.body.appendChild(dialog);
+                        dialog.showModal();
+                      }}
+                    >
+                      Change Password
+                    </Button>
+                  </div>
+                </div>
+                
                 <p className="text-neutral-600">@{user.username}</p>
               </div>
             </CardContent>
