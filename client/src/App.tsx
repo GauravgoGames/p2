@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
 import ProfilePage from "@/pages/profile-page";
+import UserProfilePage from "@/pages/user-profile-page";
 import PredictNowPage from "@/pages/predict-now-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
 import HelpPage from "@/pages/help-page";
@@ -31,6 +32,7 @@ function Router() {
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/help" component={HelpPage} />
           <ProtectedRoute path="/profile" component={ProfilePage} />
+          <Route path="/users/:username" element={<UserProfilePage />} />
           <ProtectedRoute path="/admin" component={AdminDashboard} adminOnly={true} />
           <ProtectedRoute path="/admin/matches" component={ManageMatches} adminOnly={true} />
           <ProtectedRoute path="/admin/users" component={ManageUsers} adminOnly={true} />

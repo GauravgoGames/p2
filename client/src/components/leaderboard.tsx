@@ -125,7 +125,12 @@ const Leaderboard = () => {
                               {entry.username.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{entry.displayName || entry.username}</span>
+                          <a 
+                            href={`/users/${entry.username}`} 
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            {entry.displayName || entry.username}
+                          </a>
                           {entry.id === user?.id && (
                             <span className="ml-2 text-xs bg-primary text-white px-2 py-1 rounded">You</span>
                           )}

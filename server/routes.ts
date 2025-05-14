@@ -309,6 +309,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Users
+  // Public user profile endpoint
+  app.get("/api/users/:username", async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove sensitive information
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching user" });
+    }
+  });
+
+  // Public user predictions endpoint
+  app.get("/api/users/:username/predictions", async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const predictions = await storage.getUserPredictions(user.id);
+      res.json(predictions);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching predictions" });
+    }
+  });
+
   app.get("/api/users", isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
