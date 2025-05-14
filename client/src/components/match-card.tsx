@@ -185,15 +185,15 @@ const MatchCard = ({ match, userPrediction, tossPredictions, matchPredictions }:
 
   // Determine expert choices
   const getExpertChoice = (type: 'toss' | 'match'): number | null => {
-    if (!match.predictionStats) return null;
+    const predictions = type === 'toss' ? tossPredictions : matchPredictions;
+    if (!predictions) return null;
+
+    const team1Count = predictions[match.team1Id] || 0;
+    const team2Count = predictions[match.team2Id] || 0;
     
-    const stats = type === 'toss' 
-      ? match.predictionStats.tossWinner
-      : match.predictionStats.matchWinner;
-    
-    if (stats.team1Count > stats.team2Count && stats.team1Count > 0) {
+    if (team1Count > team2Count && team1Count > 0) {
       return match.team1Id;
-    } else if (stats.team2Count > stats.team1Count && stats.team2Count > 0) {
+    } else if (team2Count > team1Count && team2Count > 0) {
       return match.team2Id;
     }
     return null; // In case of a tie or no predictions
