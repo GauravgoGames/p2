@@ -383,33 +383,29 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                   </div>
                   Who will win the toss?
                 </div>
-                {match.predictionStats?.tossWinner && (
-                  <div className="text-xs text-neutral-500">
-                    {match.predictionStats.tossWinner.team1Count + match.predictionStats.tossWinner.team2Count} votes
-                  </div>
-                )}
+                <div className="text-xs text-neutral-500">
+                  {(match.predictionStats?.tossWinner?.team1Count || 0) + (match.predictionStats?.tossWinner?.team2Count || 0)} votes
+                </div>
               </div>
 
-              {/* Prediction meter for toss */}
-              {match.predictionStats?.tossWinner && (
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs text-neutral-500 mb-1">
-                    <span>{match.predictionStats.tossWinner.team1Count} votes</span>
-                    <span>{match.predictionStats.tossWinner.team2Count} votes</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full transition-all duration-300"
-                      style={{
-                        width: '100%',
-                        background: `linear-gradient(to right, 
-                          #22c55e ${match.predictionStats.tossWinner.team1Percentage}%, 
-                          #ef4444 ${match.predictionStats.tossWinner.team1Percentage}%)`
-                      }}
-                    />
-                  </div>
+              {/* Prediction meter for toss - Always visible */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                  <span>{match.team1.name}: {match.predictionStats?.tossWinner?.team1Count || 0} votes</span>
+                  <span>{match.team2.name}: {match.predictionStats?.tossWinner?.team2Count || 0} votes</span>
                 </div>
-              )}
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full transition-all duration-300"
+                    style={{
+                      width: '100%',
+                      background: `linear-gradient(to right, 
+                        #22c55e ${match.predictionStats?.tossWinner?.team1Percentage || 50}%, 
+                        #ef4444 ${match.predictionStats?.tossWinner?.team1Percentage || 50}%)`
+                    }}
+                  />
+                </div>
+              </div>
               
               <div className="flex space-x-3">
                 <button 
@@ -462,33 +458,29 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                   </div>
                   Who will win the match?
                 </div>
-                {match.predictionStats?.matchWinner && (
-                  <div className="text-xs text-neutral-500">
-                    {match.predictionStats.matchWinner.team1Count + match.predictionStats.matchWinner.team2Count} votes
-                  </div>
-                )}
+                <div className="text-xs text-neutral-500">
+                  {(match.predictionStats?.matchWinner?.team1Count || 0) + (match.predictionStats?.matchWinner?.team2Count || 0)} votes
+                </div>
               </div>
 
-              {/* Prediction meter for match winner */}
-              {match.predictionStats?.matchWinner && (
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs text-neutral-500 mb-1">
-                    <span>{match.predictionStats.matchWinner.team1Count} votes</span>
-                    <span>{match.predictionStats.matchWinner.team2Count} votes</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full transition-all duration-300"
-                      style={{
-                        width: '100%',
-                        background: `linear-gradient(to right, 
-                          #22c55e ${match.predictionStats.matchWinner.team1Percentage}%, 
-                          #ef4444 ${match.predictionStats.matchWinner.team1Percentage}%)`
-                      }}
-                    />
-                  </div>
+              {/* Prediction meter for match winner - Always visible */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                  <span>{match.team1.name}: {match.predictionStats?.matchWinner?.team1Count || 0} votes</span>
+                  <span>{match.team2.name}: {match.predictionStats?.matchWinner?.team2Count || 0} votes</span>
                 </div>
-              )}
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full transition-all duration-300"
+                    style={{
+                      width: '100%',
+                      background: `linear-gradient(to right, 
+                        #22c55e ${match.predictionStats?.matchWinner?.team1Percentage || 50}%, 
+                        #ef4444 ${match.predictionStats?.matchWinner?.team1Percentage || 50}%)`
+                    }}
+                  />
+                </div>
+              </div>
               
               <div className="flex space-x-3">
                 <button 
