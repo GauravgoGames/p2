@@ -259,21 +259,47 @@ const MatchCard = ({ match, userPrediction, tossPredictions, matchPredictions }:
           )}
         </div>
 
+        {/* Community Predictions Section */}
+        {(tossStats.team1Percentage > 0 || tossStats.team2Percentage > 0 || matchStats.team1Percentage > 0 || matchStats.team2Percentage > 0) && (
+          <div className="bg-gray-50 p-3 rounded-lg mb-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">Community Predictions</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <div className="text-xs text-gray-500">Toss Winner</div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>{match.team1.name}</span>
+                  <span className={`font-medium ${tossStats.team1Percentage > 60 ? 'text-amber-500' : ''}`}>
+                    {tossStats.team1Percentage}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>{match.team2.name}</span>
+                  <span className={`font-medium ${tossStats.team2Percentage > 60 ? 'text-amber-500' : ''}`}>
+                    {tossStats.team2Percentage}%
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs text-gray-500">Match Winner</div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>{match.team1.name}</span>
+                  <span className={`font-medium ${matchStats.team1Percentage > 60 ? 'text-emerald-500' : ''}`}>
+                    {matchStats.team1Percentage}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>{match.team2.name}</span>
+                  <span className={`font-medium ${matchStats.team2Percentage > 60 ? 'text-emerald-500' : ''}`}>
+                    {matchStats.team2Percentage}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-6">
-          
           <div className="team-display flex flex-col items-center relative">
-                {expertTossChoice === match.team1Id && (
-                  <div className="absolute -top-2 -right-2 bg-amber-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                    {tossStats.team1Percentage}% Expert Pick
-                  </div>
-                )}
-                {expertMatchChoice === match.team1Id && (
-                  <div className="absolute -top-6 -right-2 bg-emerald-400 text-xs px-2 py-1 rounded-full text-white font-bold shadow-md z-10 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
-                    {matchStats.team1Percentage}% Expert Pick
-                  </div>
-                )}
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
               <img 
                 src={match.team1.logoUrl || 'https://via.placeholder.com/80'} 
