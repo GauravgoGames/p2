@@ -159,8 +159,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!match) {
         return res.status(404).json({ message: "Match not found" });
       }
+
+      // Get prediction stats
+      const predictions = await storage.getPredictionStats(id);
+      const predictionStats = {
+        tossWinner: {
+          team1Count: predictions.tossTeam1Count || 0,
+          team2Count: predictions.tossTeam2Count || 0,
+          team1Percentage: predictions.tossTeam1Count ? 
+            (predictions.tossTeam1Count / (predictions.tossTeam1Count + predictions.tossTeam2Count) * 100) : 50,
+        },
+        matchWinner: {
+          team1Count: predictions.matchTeam1Count || 0,
+          team2Count: predictions.matchTeam2Count || 0,
+          team1Percentage: predictions.matchTeam1Count ? 
+            (predictions.matchTeam1Count / (predictions.matchTeam1Count + predictions.matchTeam2Count) * 100) : 50,
+        }
+      };
       
-      res.json(match);
+      res.json({ ...match, predictionStats });
     } catch (error) {
       res.status(500).json({ message: "Error fetching match details" });
     }

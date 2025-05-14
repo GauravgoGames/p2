@@ -376,12 +376,40 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         ) : (
           <div className="predictions-container">
             <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
-                  <span className="text-xs text-white font-bold">1</span>
+              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">1</span>
+                  </div>
+                  Who will win the toss?
                 </div>
-                Who will win the toss?
+                {match.predictionStats?.tossWinner && (
+                  <div className="text-xs text-neutral-500">
+                    {match.predictionStats.tossWinner.team1Count + match.predictionStats.tossWinner.team2Count} votes
+                  </div>
+                )}
               </div>
+
+              {/* Prediction meter for toss */}
+              {match.predictionStats?.tossWinner && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                    <span>{match.predictionStats.tossWinner.team1Count} votes</span>
+                    <span>{match.predictionStats.tossWinner.team2Count} votes</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-300"
+                      style={{
+                        width: '100%',
+                        background: `linear-gradient(to right, 
+                          #22c55e ${match.predictionStats.tossWinner.team1Percentage}%, 
+                          #ef4444 ${match.predictionStats.tossWinner.team1Percentage}%)`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="flex space-x-3">
                 <button 
@@ -427,12 +455,40 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             </div>
             
             <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
-                  <span className="text-xs text-white font-bold">2</span>
+              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">2</span>
+                  </div>
+                  Who will win the match?
                 </div>
-                Who will win the match?
+                {match.predictionStats?.matchWinner && (
+                  <div className="text-xs text-neutral-500">
+                    {match.predictionStats.matchWinner.team1Count + match.predictionStats.matchWinner.team2Count} votes
+                  </div>
+                )}
               </div>
+
+              {/* Prediction meter for match winner */}
+              {match.predictionStats?.matchWinner && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-neutral-500 mb-1">
+                    <span>{match.predictionStats.matchWinner.team1Count} votes</span>
+                    <span>{match.predictionStats.matchWinner.team2Count} votes</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full transition-all duration-300"
+                      style={{
+                        width: '100%',
+                        background: `linear-gradient(to right, 
+                          #22c55e ${match.predictionStats.matchWinner.team1Percentage}%, 
+                          #ef4444 ${match.predictionStats.matchWinner.team1Percentage}%)`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="flex space-x-3">
                 <button 
