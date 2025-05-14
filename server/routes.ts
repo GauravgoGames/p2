@@ -155,6 +155,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/matches/:id/prediction-stats", async (req, res) => {
     try {
       const matchId = parseInt(req.params.id, 10);
+      const match = await storage.getMatchById(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
       const predictions = await storage.getMatchPredictions(matchId);
 
       let team1TossCount = 0;
