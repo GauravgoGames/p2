@@ -251,7 +251,7 @@ const LeaderboardPage = () => {
                           <div className="flex flex-col">
                             <span className="font-medium">{entry.correctWinnerPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100).toFixed(1)}%
+                              {entry.totalMatches > 0 ? ((entry.correctWinnerPredictions || 0) / entry.totalMatches * 100).toFixed(1) : '0.0'}%
                             </span>
                           </div>
                         </td>
@@ -259,7 +259,7 @@ const LeaderboardPage = () => {
                           <div className="flex flex-col">
                             <span className="font-medium">{entry.correctTossPredictions || 0}</span>
                             <span className="text-xs text-neutral-500">
-                              {((entry.correctTossPredictions || 0) / entry.totalMatches * 100).toFixed(1)}%
+                              {entry.totalMatches > 0 ? ((entry.correctTossPredictions || 0) / entry.totalMatches * 100).toFixed(1) : '0.0'}%
                             </span>
                           </div>
                         </td>

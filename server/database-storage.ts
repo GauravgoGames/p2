@@ -418,23 +418,24 @@ export class DatabaseStorage implements IStorage {
       const leaderboardUser = userMap.get(prediction.userId);
       if (!leaderboardUser) continue;
       
-      leaderboardUser.totalMatches++;
+      if (!leaderboardUser.correctWinnerPredictions) leaderboardUser.correctWinnerPredictions = 0;
+      if (!leaderboardUser.correctTossPredictions) leaderboardUser.correctTossPredictions = 0;
+      if (!leaderboardUser.totalMatches) leaderboardUser.totalMatches = 0;
       
-      // Initialize stats if not exists
-      leaderboardUser.correctWinnerPredictions = leaderboardUser.correctWinnerPredictions || 0;
-      leaderboardUser.correctTossPredictions = leaderboardUser.correctTossPredictions || 0;
+      leaderboardUser.totalMatches++;
       
       // Check if toss prediction was correct
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
         leaderboardUser.correctTossPredictions++;
-        leaderboardUser.correctPredictions++;
       }
       
       // Check if match winner prediction was correct
       if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
         leaderboardUser.correctWinnerPredictions++;
-        leaderboardUser.correctPredictions++;
       }
+      
+      // Update total correct predictions
+      leaderboardUser.correctPredictions = leaderboardUser.correctWinnerPredictions + leaderboardUser.correctTossPredictions;
       
       // Calculate percentages
       leaderboardUser.winnerPredictionAccuracy = (leaderboardUser.correctWinnerPredictions / leaderboardUser.totalMatches * 100).toFixed(1);
