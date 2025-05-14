@@ -149,11 +149,7 @@ export default function ProfilePage() {
                 {predictions.map((prediction: any) => (
                   <Card key={prediction.id} className="overflow-hidden">
                     <CardContent className="p-0">
-                      <MatchCard 
-                        match={prediction.match} 
-                        userPrediction={prediction} 
-                        disableUpdate={currentUser?.username !== username}
-                      />
+                      <MatchCard match={prediction.match} userPrediction={prediction} />
                     </CardContent>
                   </Card>
                 ))}

@@ -504,7 +504,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 : 'bg-gradient-to-r from-blue-600 to-primary text-white hover:from-blue-700 hover:to-blue-600'
               }`}
             >
-              {predictionMutation.isPending ? 'Submitting...' : (userPrediction && !props.disableUpdate) ? 'Update Prediction' : userPrediction ? 'Prediction Made' : 'Submit Prediction'}
+              {predictionMutation.isPending ? 'Submitting...' : userPrediction ? 'Update Prediction' : 'Submit Prediction'}
             </Button>
           ) : (
             <div className="px-4 py-2 bg-gray-200 rounded-full text-sm font-medium text-gray-700 shadow-sm">
