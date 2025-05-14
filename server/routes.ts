@@ -230,10 +230,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (pred.predictedMatchWinnerId === match.team2Id) team2MatchCount++;
       });
       
-      const totalToss = team1TossCount + team2TossCount;
-      const totalMatch = team1MatchCount + team2MatchCount;
+      const totalToss = team1TossCount + team2TossCount || 1;
+      const totalMatch = team1MatchCount + team2MatchCount || 1;
       
-      res.json({
+      const response = {
         tossWinner: {
           team1Count: team1TossCount,
           team2Count: team2TossCount,

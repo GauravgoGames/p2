@@ -86,24 +86,24 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       await apiRequest('POST', '/api/predictions', predictionData);
     },
     onSuccess: async () => {
-    toast({
-      title: 'Prediction Submitted',
-      description: 'Your prediction has been saved successfully',
-    });
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/predictions'] }),
-      queryClient.invalidateQueries({ queryKey: [`/api/matches/${match.id}/prediction-stats`] })
-    ]);
-    // Force refetch prediction stats
-    const newStats = await queryClient.fetchQuery({
-      queryKey: [`/api/matches/${match.id}/prediction-stats`],
-      queryFn: async () => {
+      const { toast } = useToast();
+      toast({
+        title: userPrediction ? 'Prediction Updated' : 'Prediction Submitted',
+        description: userPrediction ? 'Your prediction has been updated successfully' : 'Your prediction has been saved successfully',
+      });
+
+      // Invalidate and refetch predictions
+      await queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
+      
+      // Fetch fresh prediction stats
+      try {
         const res = await apiRequest('GET', `/api/matches/${match.id}/prediction-stats`);
-        return res.json();
+        const newStats = await res.json();
+        setPredictionStats(newStats);
+      } catch (error) {
+        console.error('Failed to fetch prediction stats:', error);
       }
-    });
-    setPredictionStats(newStats);
-  },
+    },
     onError: (error: Error) => {
       toast({
         title: 'Prediction Failed',
