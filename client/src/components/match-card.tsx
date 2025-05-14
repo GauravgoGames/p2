@@ -515,24 +515,54 @@ const predictionMutation = useMutation({
               {/* Match Winner Prediction Stats */}
               <div className="mb-4 px-2">
                 <div className="text-xs text-neutral-500 mb-1 flex justify-between">
+                  <span>{predictionStats?.tossWinner?.team1Count || 0} votes</span>
+                  <span>{predictionStats?.tossWinner?.team2Count || 0} votes</span>
+                </div>
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full flex">
+                    <div 
+                      className="h-full bg-green-500 transition-all duration-300"
+                      style={{
+                        width: `${predictionStats?.tossWinner?.team1Percentage || 50}%`
+                      }}
+                    />
+                    <div 
+                      className="h-full bg-red-500 transition-all duration-300"
+                      style={{
+                        width: `${predictionStats?.tossWinner?.team2Percentage || 50}%`
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-center text-neutral-500 mt-1">
+                  Total Votes: {predictionStats?.tossWinner?.totalVotes || 0}
+                </div>
+              </div>
+
+              {/* Match Winner Prediction Stats */}
+              <div className="mb-4 px-2">
+                <div className="text-xs text-neutral-500 mb-1 flex justify-between">
                   <span>{predictionStats?.matchWinner?.team1Count || 0} votes</span>
                   <span>{predictionStats?.matchWinner?.team2Count || 0} votes</span>
                 </div>
                 <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
                   <div className="h-full flex">
                     <div 
-                      className="h-full bg-green-500"
+                      className="h-full bg-green-500 transition-all duration-300"
                       style={{
-                        width: `${predictionStats?.matchWinner?.team1Percentage || 0}%`
+                        width: `${predictionStats?.matchWinner?.team1Percentage || 50}%`
                       }}
                     />
                     <div 
-                      className="h-full bg-red-500"
+                      className="h-full bg-red-500 transition-all duration-300"
                       style={{
-                        width: `${predictionStats?.matchWinner?.team2Percentage || 0}%`
+                        width: `${predictionStats?.matchWinner?.team2Percentage || 50}%`
                       }}
                     />
                   </div>
+                </div>
+                <div className="text-xs text-center text-neutral-500 mt-1">
+                  Total Votes: {predictionStats?.matchWinner?.totalVotes || 0}
                 </div>
               </div>
 

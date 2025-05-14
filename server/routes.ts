@@ -351,23 +351,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (pred.predictedMatchWinnerId === match.team2Id) team2MatchCount++;
       });
 
-      const totalToss = team1TossCount + team2TossCount || 1;
-      const totalMatch = team1MatchCount + team2MatchCount || 1;
+      const totalToss = team1TossCount + team2TossCount;
+      const totalMatch = team1MatchCount + team2MatchCount;
 
       const response = {
         prediction,
         stats: {
           tossWinner: {
-            team1Percentage: (team1TossCount / totalToss) * 100,
-            team2Percentage: (team2TossCount / totalToss) * 100,
+            team1Percentage: totalToss ? (team1TossCount / totalToss) * 100 : 50,
+            team2Percentage: totalToss ? (team2TossCount / totalToss) * 100 : 50,
             team1Count: team1TossCount,
-            team2Count: team2TossCount
+            team2Count: team2TossCount,
+            totalVotes: totalToss
           },
           matchWinner: {
-            team1Percentage: (team1MatchCount / totalMatch) * 100,
-            team2Percentage: (team2MatchCount / totalMatch) * 100,
+            team1Percentage: totalMatch ? (team1MatchCount / totalMatch) * 100 : 50,
+            team2Percentage: totalMatch ? (team2MatchCount / totalMatch) * 100 : 50,
             team1Count: team1MatchCount,
-            team2Count: team2MatchCount
+            team2Count: team2MatchCount,
+            totalVotes: totalMatch
           }
         }
       };
