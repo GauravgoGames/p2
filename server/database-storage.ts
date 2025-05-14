@@ -418,18 +418,16 @@ export class DatabaseStorage implements IStorage {
       const leaderboardUser = userMap.get(prediction.userId);
       if (!leaderboardUser) continue;
       
-      if (!leaderboardUser.correctWinnerPredictions) leaderboardUser.correctWinnerPredictions = 0;
-      if (!leaderboardUser.correctTossPredictions) leaderboardUser.correctTossPredictions = 0;
-      if (!leaderboardUser.totalMatches) leaderboardUser.totalMatches = 0;
+      // Initialize stats if undefined
+      leaderboardUser.correctWinnerPredictions = leaderboardUser.correctWinnerPredictions || 0;
+      leaderboardUser.correctTossPredictions = leaderboardUser.correctTossPredictions || 0;
+      leaderboardUser.totalMatches = 1; // Each prediction represents one match
       
-      leaderboardUser.totalMatches++;
-      
-      // Check if toss prediction was correct
+      // Check predictions
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
         leaderboardUser.correctTossPredictions++;
       }
       
-      // Check if match winner prediction was correct
       if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
         leaderboardUser.correctWinnerPredictions++;
       }
@@ -437,8 +435,9 @@ export class DatabaseStorage implements IStorage {
       // Update total correct predictions
       leaderboardUser.correctPredictions = leaderboardUser.correctWinnerPredictions + leaderboardUser.correctTossPredictions;
       
-      // Calculate percentages
-      leaderboardUser.winnerPredictionAccuracy = (leaderboardUser.correctWinnerPredictions / leaderboardUser.totalMatches * 100).toFixed(1);
+      // Calculate accurate percentages
+      const totalPossiblePredictions = leaderboardUser.totalMatches * 2; // 2 predictions per match (toss + winner)
+      leaderboardUser.winnerPredictionAccuracy = ((leaderboardUser.correctWinnerPredictions / leaderboardUser.totalMatches) * 100).toFixed(1);
       leaderboardUser.tossPredictionAccuracy = (leaderboardUser.correctTossPredictions / leaderboardUser.totalMatches * 100).toFixed(1);
       leaderboardUser.strikeRate = ((Number(leaderboardUser.winnerPredictionAccuracy) + Number(leaderboardUser.tossPredictionAccuracy)) / 2).toFixed(1);
     }
