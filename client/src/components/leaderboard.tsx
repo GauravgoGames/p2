@@ -125,12 +125,24 @@ const Leaderboard = () => {
                               {entry.username.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <a 
-                            href={`/users/${entry.username}`}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
-                            {entry.displayName || entry.username}
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <a 
+                              href={`/users/${entry.username}`}
+                              className="font-medium hover:text-primary transition-colors"
+                            >
+                              {entry.displayName || entry.username}
+                            </a>
+                            <a
+                              href={`/users/${entry.username}`}
+                              className="p-1 hover:bg-neutral-100 rounded-full transition-colors"
+                              title="View Profile"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-500 hover:text-primary">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                            </a>
+                          </div>
                           {entry.id === user?.id && (
                             <span className="ml-2 text-xs bg-primary text-white px-2 py-1 rounded">You</span>
                           )}
