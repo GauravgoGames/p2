@@ -184,23 +184,32 @@ const MatchCard = ({ match, userPrediction, tossPredictions, matchPredictions }:
   };
 
   // Determine expert choices
-  const getExpertChoice = (predictions: { [teamId: number]: number } | undefined): number | null => {
-    if (!predictions) return null;
+  const getExpertChoice = (type: 'toss' | 'match'): number | null => {
+    const allPredictions = Array.from(storage.predictions.values())
+      .filter(p => p.matchId === match.id);
+    
+    const team1Count = allPredictions.filter(p => 
+      type === 'toss' 
+        ? p.predictedTossWinnerId === match.team1Id 
+        : p.predictedMatchWinnerId === match.team1Id
+    ).length;
+    
+    const team2Count = allPredictions.filter(p => 
+      type === 'toss' 
+        ? p.predictedTossWinnerId === match.team2Id 
+        : p.predictedMatchWinnerId === match.team2Id
+    ).length;
 
-    const team1Predictions = predictions[match.team1Id] || 0;
-    const team2Predictions = predictions[match.team2Id] || 0;
-
-    if (team1Predictions > team2Predictions) {
+    if (team1Count > team2Count && team1Count > 0) {
       return match.team1Id;
-    } else if (team2Predictions > team1Predictions) {
+    } else if (team2Count > team1Count && team2Count > 0) {
       return match.team2Id;
-    } else {
-      return null; // In case of a tie
     }
+    return null; // In case of a tie or no predictions
   };
 
-  const expertTossChoice = getExpertChoice(tossPredictions);
-  const expertMatchChoice = getExpertChoice(matchPredictions);
+  const expertTossChoice = getExpertChoice('toss');
+  const expertMatchChoice = getExpertChoice('match');
 
   return (
     <div className="match-card bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
