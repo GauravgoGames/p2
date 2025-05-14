@@ -377,10 +377,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      const updatedUser = await storage.updateUser(userId, req.body);
+      // Validate update data
+      const allowedUpdates = ['displayName', 'email'];
+      const updates = Object.keys(req.body).reduce((acc: any, key) => {
+        if (allowedUpdates.includes(key)) {
+          acc[key] = req.body[key];
+        }
+        return acc;
+      }, {});
+      
+      const updatedUser = await storage.updateUser(userId, updates);
       res.json(updatedUser);
     } catch (error) {
-      res.status(400).json({ message: "Invalid profile data", error });
+      console.error('Profile update error:', error);
+      res.status(400).json({ message: "Failed to update profile" });
     }
   });
   

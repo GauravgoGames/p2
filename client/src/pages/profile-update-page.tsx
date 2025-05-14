@@ -77,23 +77,33 @@ export default function ProfileUpdatePage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileBasicFields) => {
-      const formData = new FormData();
-      formData.append('displayName', data.displayName);
-      
-      if (imageFile) {
-        formData.append('image', imageFile);
-      }
-
-      const res = await fetch('/api/profile/update', {
-        method: 'PUT',
-        body: formData,
+      // First update basic profile info
+      const profileRes = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: data.displayName }),
       });
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to update profile');
+      if (!profileRes.ok) {
+        throw new Error('Failed to update profile');
       }
-      return res.json();
+
+      // If there's a new image, upload it separately
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+
+        const imageRes = await fetch('/api/profile/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!imageRes.ok) {
+          throw new Error('Failed to upload profile image');
+        }
+      }
+
+      return profileRes.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
@@ -113,16 +123,34 @@ export default function ProfileUpdatePage() {
 
   const updateSecurityMutation = useMutation({
     mutationFn: async (data: SecurityFields) => {
-      const res = await fetch('/api/profile/security', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to update security settings');
+      // Update email separately if changed
+      if (data.email !== user?.email) {
+        const emailRes = await fetch('/api/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: data.email }),
+        });
+        if (!emailRes.ok) {
+          throw new Error('Failed to update email');
+        }
       }
-      return res.json();
+
+      // Update password if provided
+      if (data.newPassword) {
+        const passwordRes = await fetch('/api/profile/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: data.currentPassword,
+            newPassword: data.newPassword,
+          }),
+        });
+        if (!passwordRes.ok) {
+          throw new Error('Failed to update password');
+        }
+      }
+
+      return { message: 'Security settings updated successfully' };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
