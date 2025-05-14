@@ -301,7 +301,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/leaderboard", async (req, res) => {
     try {
       const timeframe = req.query.timeframe as string || 'all-time';
-      const leaderboard = await storage.getLeaderboard(timeframe);
+      const details = req.query.details === 'true';
+      const leaderboard = await storage.getLeaderboard(timeframe, details);
       res.json(leaderboard);
     } catch (error) {
       res.status(500).json({ message: "Error fetching leaderboard" });
