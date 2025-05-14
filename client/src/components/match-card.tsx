@@ -50,14 +50,30 @@ const MatchCard = ({ match, userPrediction, tossPredictionCounts, matchPredictio
 
       await apiRequest('POST', '/api/predictions', predictionData);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: 'Prediction Submitted',
         description: 'Your prediction has been saved successfully',
       });
-      // Invalidate both predictions and matches to refresh counts
+      
+      // Update prediction counts from response
+      if (data.tossPredictionCounts && data.matchPredictionCounts) {
+        queryClient.setQueryData(['/api/matches'], (oldData: any) => {
+          if (!oldData) return oldData;
+          const matches = [...oldData];
+          const matchIndex = matches.findIndex(m => m.id === match.id);
+          if (matchIndex > -1) {
+            matches[matchIndex] = {
+              ...matches[matchIndex],
+              tossPredictionCounts: data.tossPredictionCounts,
+              matchPredictionCounts: data.matchPredictionCounts
+            };
+          }
+          return matches;
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/predictions'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
     },
     onError: (error: Error) => {
       toast({
