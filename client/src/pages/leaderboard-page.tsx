@@ -26,7 +26,7 @@ const LeaderboardPage = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [timeframe, setTimeframe] = useState('weekly');
-  const [view, setView] = useState<'compact' | 'detailed' | 'matrix'>('compact');
+  // Using compact view only
 
   const { data: leaderboard, isLoading } = useQuery<LeaderboardUser[]>({
     queryKey: ['/api/leaderboard', timeframe],
@@ -104,13 +104,7 @@ const LeaderboardPage = () => {
               </TabsList>
             </Tabs>
 
-            <Tabs defaultValue={view} value={view} onValueChange={setView as any}>
-              <TabsList>
-                <TabsTrigger value="compact">Compact</TabsTrigger>
-                <TabsTrigger value="detailed">Detailed</TabsTrigger>
-                <TabsTrigger value="matrix">Matrix</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            {/* View selector removed - using compact view only */}
           </div>
         </div>
 
