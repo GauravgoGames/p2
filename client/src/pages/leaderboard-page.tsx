@@ -126,7 +126,12 @@ const LeaderboardPage = () => {
                     <th className="pb-3">Pass %</th>
                     {matches?.map((match: any, index: number) => (
                       <th key={match.id} className="pb-3 px-2 text-center">
-                        {index + 1}
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs font-bold">{index + 1}</span>
+                          <div className="text-[10px] font-medium text-neutral-600">
+                            {match.teams?.[0]?.name.substring(0, 3).toUpperCase()} vs {match.teams?.[1]?.name.substring(0, 3).toUpperCase()}
+                          </div>
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -163,9 +168,17 @@ const LeaderboardPage = () => {
                       </td>
                       {matches?.map((match: any) => {
                         const prediction = entry.predictions?.find((p: any) => p.matchId === match.id);
+                        const predictedTeam = match.teams?.find((t: any) => t.id === prediction?.predictedMatchWinnerId);
+                        const isCorrect = match.status === 'completed' && prediction?.predictedMatchWinnerId === match.matchWinnerId;
+                        const isWrong = match.status === 'completed' && prediction?.predictedMatchWinnerId !== match.matchWinnerId;
+                        
                         return (
-                          <td key={match.id} className={`py-4 px-2 text-center ${getResultColor(prediction, match)}`}>
-                            {prediction?.predictedMatchWinnerId ? match.teams?.find((t: any) => t.id === prediction.predictedMatchWinnerId)?.name.substring(0, 3) : '-'}
+                          <td key={match.id} className={`py-2 px-3 text-center text-sm font-medium ${
+                            isCorrect ? 'bg-green-100 text-green-800' : 
+                            isWrong ? 'bg-red-100 text-red-800' : 
+                            'bg-neutral-50 text-neutral-600'
+                          }`}>
+                            {predictedTeam ? predictedTeam.name.substring(0, 3).toUpperCase() : '-'}
                           </td>
                         );
                       })}
