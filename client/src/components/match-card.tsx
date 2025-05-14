@@ -512,7 +512,7 @@ const predictionMutation = useMutation({
                 Who will win the match?
               </div>
 
-              {/* Match Winner Prediction Stats */}
+              {/* Toss Winner Prediction Stats */}
               <div className="mb-4 px-2">
                 <div className="text-xs text-neutral-500 mb-1 flex justify-between">
                   <span>{predictionStats?.tossWinner?.team1Count || 0} votes</span>
@@ -523,19 +523,16 @@ const predictionMutation = useMutation({
                     <div 
                       className="h-full bg-green-500 transition-all duration-300"
                       style={{
-                        width: `${predictionStats?.tossWinner?.team1Percentage || 50}%`
+                        width: `${predictionStats?.tossWinner?.team1Percentage || 0}%`
                       }}
                     />
                     <div 
                       className="h-full bg-red-500 transition-all duration-300"
                       style={{
-                        width: `${predictionStats?.tossWinner?.team2Percentage || 50}%`
+                        width: `${predictionStats?.tossWinner?.team2Percentage || 0}%`
                       }}
                     />
                   </div>
-                </div>
-                <div className="text-xs text-center text-neutral-500 mt-1">
-                  Total Votes: {predictionStats?.tossWinner?.totalVotes || 0}
                 </div>
               </div>
 
@@ -550,19 +547,16 @@ const predictionMutation = useMutation({
                     <div 
                       className="h-full bg-green-500 transition-all duration-300"
                       style={{
-                        width: `${predictionStats?.matchWinner?.team1Percentage || 50}%`
+                        width: `${predictionStats?.matchWinner?.team1Percentage || 0}%`
                       }}
                     />
                     <div 
                       className="h-full bg-red-500 transition-all duration-300"
                       style={{
-                        width: `${predictionStats?.matchWinner?.team2Percentage || 50}%`
+                        width: `${predictionStats?.matchWinner?.team2Percentage || 0}%`
                       }}
                     />
                   </div>
-                </div>
-                <div className="text-xs text-center text-neutral-500 mt-1">
-                  Total Votes: {predictionStats?.matchWinner?.totalVotes || 0}
                 </div>
               </div>
 
