@@ -416,19 +416,33 @@ export class DatabaseStorage implements IStorage {
 
     const allPredictions = await predictionsQuery;
 
-    // Calculate statistics for each user
+    // First pass: Count unique matches per user
+    const userMatches = new Map<number, Set<number>>();
+    for (const prediction of allPredictions) {
+      const match = await this.getMatchById(prediction.matchId);
+      if (!match || match.status !== 'completed') continue;
+
+      if (!userMatches.has(prediction.userId)) {
+        userMatches.set(prediction.userId, new Set());
+      }
+      userMatches.get(prediction.userId)?.add(match.id);
+    }
+
+    // Update total matches for each user
+    for (const [userId, matches] of userMatches) {
+      const user = userMap.get(userId);
+      if (user) {
+        user.totalMatches = matches.size;
+      }
+    }
+
+    // Second pass: Calculate predictions and accuracy
     for (const prediction of allPredictions) {
       const match = await this.getMatchById(prediction.matchId);
       if (!match || match.status !== 'completed') continue;
 
       const leaderboardUser = userMap.get(prediction.userId);
       if (!leaderboardUser) continue;
-
-      // Increment match count only once per match
-      if (!leaderboardUser.matchCounted) {
-        leaderboardUser.totalMatches++;
-        leaderboardUser.matchCounted = true;
-      }
 
       // Check predictions
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
@@ -438,14 +452,19 @@ export class DatabaseStorage implements IStorage {
       if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
         leaderboardUser.correctWinnerPredictions = (leaderboardUser.correctWinnerPredictions || 0) + 1;
       }
+    }
 
-      // Calculate strike rate
-      const winnerAccuracy = leaderboardUser.correctWinnerPredictions / leaderboardUser.totalMatches * 100;
-      const tossAccuracy = leaderboardUser.correctTossPredictions / leaderboardUser.totalMatches * 100;
-      leaderboardUser.strikeRate = ((winnerAccuracy + tossAccuracy) / 2).toFixed(1);
-
-      // Update total correct predictions
-      leaderboardUser.correctPredictions = (leaderboardUser.correctWinnerPredictions || 0) + (leaderboardUser.correctTossPredictions || 0);
+    // Third pass: Calculate final statistics
+    for (const user of userMap.values()) {
+      if (user.totalMatches > 0) {
+        const winnerAccuracy = ((user.correctWinnerPredictions || 0) / user.totalMatches) * 100;
+        const tossAccuracy = ((user.correctTossPredictions || 0) / user.totalMatches) * 100;
+        user.strikeRate = ((winnerAccuracy + tossAccuracy) / 2).toFixed(1);
+        user.correctPredictions = (user.correctWinnerPredictions || 0) + (user.correctTossPredictions || 0);
+      } else {
+        user.strikeRate = '0.0';
+        user.correctPredictions = 0;
+      }
 
     }
 
