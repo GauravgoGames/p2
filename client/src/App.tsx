@@ -5,7 +5,8 @@ import { ThemeProvider } from "next-themes";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
-import ProfilePage from "@/pages/profile-page";
+import ProfilePage from '@/pages/profile-page';
+import ProfileUpdatePage from '@/pages/profile-update-page';
 import UserProfilePage from "@/pages/user-profile-page";
 import PredictNowPage from "@/pages/predict-now-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
@@ -31,7 +32,8 @@ function Router() {
           <Route path="/predict" component={PredictNowPage} />
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/help" component={HelpPage} />
-          <ProtectedRoute path="/profile" component={ProfilePage} />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/profile/update" component={ProfileUpdatePage} />
           <Route path="/users/:username" component={ProfilePage} />
           <ProtectedRoute path="/admin" component={AdminDashboard} adminOnly={true} />
           <ProtectedRoute path="/admin/matches" component={ManageMatches} adminOnly={true} />
