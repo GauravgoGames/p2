@@ -440,8 +440,8 @@ export class MemStorage implements IStorage {
         reasons.push("Correct toss prediction");
       }
       
-      // Match winner prediction point
-      if (prediction.predictedMatchWinnerId === match.matchWinnerId) {
+      // Match winner prediction point - only for completed matches with a winner
+      if (match.status === 'completed' && prediction.predictedMatchWinnerId === match.matchWinnerId) {
         pointsEarned += 1;
         reasons.push("Correct match prediction");
       }
