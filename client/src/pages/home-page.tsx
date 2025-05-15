@@ -101,6 +101,13 @@ const HomePage = () => {
     ));
   };
 
+  const { isLoading } = useQuery(['activePolls', 'completedPolls'], () => Promise.all([
+    fetch('/api/polls/active').then(res => res.json()),
+    fetch('/api/polls/completed').then(res => res.json())
+  ]), {
+    refetchOnWindowFocus: false
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <HeroSection />
@@ -175,7 +182,7 @@ const HomePage = () => {
       <div className="mb-10">
         <h2 className="text-2xl font-bold mb-6 font-heading text-neutral-800">Audience Choice</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {activePolls === undefined ? (
+          {isLoading ? (
             Array.from({ length: 2 }).map((_, i) => (
               <div key={i} className="bg-white rounded-xl shadow-md p-6">
                 <Skeleton className="h-6 w-1/3 mb-4" />

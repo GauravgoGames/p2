@@ -41,7 +41,7 @@ function Router() {
           <ProtectedRoute path="/admin/users" component={ManageUsers} adminOnly={true} />
           <ProtectedRoute path="/admin/teams" component={ManageTeams} adminOnly={true} />
           <ProtectedRoute path="/admin/settings" component={SiteSettings} adminOnly={true} />
-          <Route path="/admin/polls" component={ManagePolls} />
+          <ProtectedRoute path="/admin/polls" component={ManagePolls} adminOnly={true} />
           <Route component={NotFound} />
         </Switch>
       </main>

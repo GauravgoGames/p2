@@ -9,6 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function ManagePolls() {
   const { toast } = useToast();
@@ -18,7 +19,7 @@ export default function ManagePolls() {
   const [team2Id, setTeam2Id] = useState('');
   const [completionDate, setCompletionDate] = useState<Date>();
 
-  const { data: teams } = useQuery({
+  const { data: teams, isLoading: isLoadingTeams } = useQuery({
     queryKey: ['/api/teams'],
     queryFn: async () => {
       const res = await fetch('/api/teams');
@@ -27,7 +28,7 @@ export default function ManagePolls() {
     }
   });
 
-  const { data: polls } = useQuery({
+  const { data: polls, isLoading: isLoadingPolls } = useQuery({
     queryKey: ['/api/polls'],
     queryFn: async () => {
       const res = await fetch('/api/polls');
@@ -43,7 +44,10 @@ export default function ManagePolls() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      if (!res.ok) throw new Error('Failed to create poll');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to create poll');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -54,7 +58,7 @@ export default function ManagePolls() {
       setTeam2Id('');
       setCompletionDate(undefined);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({ 
         title: 'Failed to create poll',
         description: error.message,
@@ -80,6 +84,14 @@ export default function ManagePolls() {
       completionDate: completionDate.toISOString()
     });
   };
+
+  if (isLoadingTeams || isLoadingPolls) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -180,7 +192,7 @@ export default function ManagePolls() {
                     Ends: {format(new Date(poll.completionDate), 'PPP')}
                   </p>
                 </div>
-                <Button variant="destructive" onClick={() => {}}>Delete</Button>
+                <Button variant="destructive" size="sm" onClick={() => {}}>Delete</Button>
               </div>
             </CardContent>
           </Card>
