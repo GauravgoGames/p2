@@ -1,43 +1,37 @@
 
-import { spawn } from 'child_process';
-import dotenv from 'dotenv';
-import path from 'path';
-
-console.log('Starting ProAce Predictions...');
+// Simple startup script
+const { spawn } = require('child_process');
+console.log("Starting ProAce Predictions...");
 
 // Load environment variables from .env file
-dotenv.config();
+require('dotenv').config();
+
+// Set the PORT environment variable if not already set
+if (!process.env.PORT) {
+  process.env.PORT = '3000';
+}
 
 // Set production environment
 process.env.NODE_ENV = 'production';
-process.env.PORT = process.env.PORT || '5000';
-process.env.HOST = '0.0.0.0';
 
-// Start the server process
-const server = spawn('tsx', ['server/index.ts'], {
+// Start the server
+const server = spawn('node', ['dist/server/index.js'], { 
   stdio: 'inherit',
-  env: process.env,
-  cwd: process.cwd()
+  env: process.env
 });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${process.env.PORT} is already in use. Please free up the port and try again.`);
-  } else {
-    console.error('Failed to start server:', err);
-  }
-  process.exit(1);
+server.on('close', (code) => {
+  console.log(`Server process exited with code ${code}`);
+  process.exit(code);
 });
 
 // Handle process termination
 const cleanup = () => {
   console.log('Shutting down...');
   if (server && !server.killed) {
-    server.kill('SIGKILL');
+    server.kill();
   }
-  process.exit(0);
 };
 
 process.on('SIGINT', cleanup);
 process.on('SIGTERM', cleanup);
-process.on('exit', cleanup);
