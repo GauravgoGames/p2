@@ -16,7 +16,7 @@ interface PollProps {
 }
 
 export default function AudiencePoll({ poll }: PollProps) {
-  const { toast } } = useToast();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
 
