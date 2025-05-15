@@ -209,7 +209,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               {match.status === 'completed' ? 'COMPLETED' : 
                match.status === 'tie' ? 'TIE' :
                match.status === 'void' ? 'VOID' :
-               match.status === 'upcoming' ? 'UPCOMING' : 'COMPLETED'}
+               match.status === 'upcoming' ? 'UPCOMING' : 
+               match.status === 'ongoing' ? 'LIVE' : 'COMPLETED'}
             </Badge>
           </div>
         )}
