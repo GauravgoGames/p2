@@ -1,0 +1,87 @@
+m[rzi5hw1x8nm8@node193 expertlive.pro-ace-predictions.co.uk]$ pm2 status
+   pm2 logs proace-predictions
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ expertlive.pro     │ fork     │ 2509 │ stopped   │ 0%       │ 0b       │
+│ 2  │ proace-predictions │ fork     │ 0    │ online    │ 0%       │ 61.1mb   │
+│ 1  │ proace-prediction… │ fork     │ 0    │ online    │ 0%       │ 61.4mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[TAILING] Tailing last 15 lines for [proace-predictions] process (change the value with --lines option)
+/home/rzi5hw1x8nm8/.pm2/logs/proace-predictions-out.log last 15 lines:
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+
+/home/rzi5hw1x8nm8/.pm2/logs/proace-predictions-error.log last 15 lines:
+2|proace-p |     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:87:39)
+2|proace-p |     at link (node:internal/modules/esm/module_job:86:36) {
+2|proace-p |   code: 'ERR_MODULE_NOT_FOUND'
+2|proace-p | }
+2|proace-p | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'dotenv' imported from /home/rzi5hw1x8nm8/expertlive.pro-ace-predictions.co.uk/start.js
+2|proace-p |     at packageResolve (node:internal/modules/esm/resolve:845:9)
+2|proace-p |     at moduleResolve (node:internal/modules/esm/resolve:918:18)
+2|proace-p |     at defaultResolve (node:internal/modules/esm/resolve:1148:11)
+2|proace-p |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:390:12)
+2|proace-p |     at ModuleLoader.resolve (node:internal/modules/esm/loader:359:25)
+2|proace-p |     at ModuleLoader.getModuleJob (node:internal/modules/esm/loader:234:38)
+2|proace-p |     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:87:39)
+2|proace-p |     at link (node:internal/modules/esm/module_job:86:36) {
+2|proace-p |   code: 'ERR_MODULE_NOT_FOUND'
+2|proace-p | }
+
+[rzi5hw1x8nm8@node193 expertlive.pro-ace-predictions.co.uk]$ pm2 status
+   pm2 logs proace-predictions
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ expertlive.pro     │ fork     │ 2509 │ stopped   │ 0%       │ 0b       │
+│ 2  │ proace-predictions │ fork     │ 0    │ online    │ 0%       │ 61.1mb   │
+│ 1  │ proace-prediction… │ fork     │ 0    │ online    │ 0%       │ 61.4mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+[TAILING] Tailing last 15 lines for [proace-predictions] process (change the value with --lines option)
+/home/rzi5hw1x8nm8/.pm2/logs/proace-predictions-out.log last 15 lines:
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+2|proace-p | Starting ProAce Predictions...
+2|proace-p | Server process exited with code 1
+
+/home/rzi5hw1x8nm8/.pm2/logs/proace-predictions-error.log last 15 lines:
+2|proace-p |     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:87:39)
+2|proace-p |     at link (node:internal/modules/esm/module_job:86:36) {
+2|proace-p |   code: 'ERR_MODULE_NOT_FOUND'
+2|proace-p | }
+2|proace-p | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'dotenv' imported from /home/rzi5hw1x8nm8/expertlive.pro-ace-predictions.co.uk/start.js
+2|proace-p |     at packageResolve (node:internal/modules/esm/resolve:845:9)
+2|proace-p |     at moduleResolve (node:internal/modules/esm/resolve:918:18)
+2|proace-p |     at defaultResolve (node:internal/modules/esm/resolve:1148:11)
+2|proace-p |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:390:12)
+2|proace-p |     at ModuleLoader.resolve (node:internal/modules/esm/loader:359:25)
+2|proace-p |     at ModuleLoader.getModuleJob (node:internal/modules/esm/loader:234:38)
+2|proace-p |     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:87:39)
+2|proace-p |     at link (node:internal/modules/esm/module_job:86:36) {
+2|proace-p |   code: 'ERR_MODULE_NOT_FOUND'
+2|proace-p | }
