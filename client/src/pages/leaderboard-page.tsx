@@ -176,8 +176,31 @@ const LeaderboardPage = () => {
         </div>
       </div>
 
-      <div className="bg-white shadow-md rounded-lg p-6">
+      {/* How Points are Earned */}
+      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
         <h2 className="text-xl font-bold mb-4">How Points are Earned</h2>
+        <div className="space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="bg-green-100 p-2 rounded-full mt-0.5">
+              <Trophy className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Match Winner Prediction</h3>
+              <p className="text-neutral-600">+1 point for correctly predicting the match winner</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-100 p-2 rounded-full mt-0.5">
+              <Medal className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Toss Winner Prediction</h3>
+              <p className="text-neutral-600">+1 point for correctly predicting the toss winner</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Performance Chart */}
       <div className="bg-white shadow-md rounded-lg p-6 mb-8">
