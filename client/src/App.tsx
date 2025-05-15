@@ -16,7 +16,6 @@ import ManageMatches from "@/pages/admin/manage-matches";
 import ManageUsers from "@/pages/admin/manage-users";
 import ManageTeams from "@/pages/admin/manage-teams";
 import SiteSettings from "@/pages/admin/site-settings";
-import ManagePolls from '@/pages/admin/manage-polls';
 import { ProtectedRoute } from "./lib/protected-route";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
@@ -41,7 +40,6 @@ function Router() {
           <ProtectedRoute path="/admin/users" component={ManageUsers} adminOnly={true} />
           <ProtectedRoute path="/admin/teams" component={ManageTeams} adminOnly={true} />
           <ProtectedRoute path="/admin/settings" component={SiteSettings} adminOnly={true} />
-          <ProtectedRoute path="/admin/polls" component={ManagePolls} adminOnly={true} />
           <Route component={NotFound} />
         </Switch>
       </main>
