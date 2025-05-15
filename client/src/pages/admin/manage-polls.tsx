@@ -5,10 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { z } from 'zod';
 import { Team } from '@shared/schema';
+
+const pollSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  team1Id: z.number().min(1, "Team 1 is required"),
+  team2Id: z.number().min(1, "Team 2 is required"),
+  completionDate: z.date().min(new Date(), "Completion date must be in the future")
+});
 
 export default function ManagePolls() {
   const { toast } = useToast();
@@ -18,7 +25,7 @@ export default function ManagePolls() {
   const [team2Id, setTeam2Id] = useState('');
   const [completionDate, setCompletionDate] = useState<Date>();
 
-  const { data: teams, isLoading: isLoadingTeams } = useQuery({
+  const { data: teams } = useQuery({
     queryKey: ['/api/teams'],
     queryFn: async () => {
       const res = await fetch('/api/teams');
@@ -27,7 +34,7 @@ export default function ManagePolls() {
     }
   });
 
-  const { data: polls, isLoading: isLoadingPolls } = useQuery({
+    const { data: polls, isLoading: isLoadingPolls } = useQuery({
     queryKey: ['/api/polls'],
     queryFn: async () => {
       const res = await fetch('/api/polls');
@@ -37,7 +44,7 @@ export default function ManagePolls() {
   });
 
   const createPollMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: z.infer<typeof pollSchema>) => {
       const res = await fetch('/api/polls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,36 +74,31 @@ export default function ManagePolls() {
   });
 
   const handleCreatePoll = () => {
-    if (!title || !team1Id || !team2Id || !completionDate) {
-      toast({
-        title: 'Missing fields',
-        description: 'Please fill in all required fields',
-        variant: 'destructive'
+    try {
+      const validatedData = pollSchema.parse({
+        title,
+        team1Id: parseInt(team1Id),
+        team2Id: parseInt(team2Id),
+        completionDate
       });
-      return;
-    }
 
-    if (team1Id === team2Id) {
-      toast({
-        title: 'Invalid team selection',
-        description: 'Please select different teams',
-        variant: 'destructive'
-      });
-      return;
+      createPollMutation.mutate(validatedData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(err => err.message).join(', ');
+        toast({
+          title: 'Validation Error',
+          description: errorMessages,
+          variant: 'destructive'
+        });
+      }
     }
-
-    createPollMutation.mutate({
-      title,
-      team1Id: parseInt(team1Id),
-      team2Id: parseInt(team2Id),
-      completionDate: completionDate.toISOString()
-    });
   };
 
-  if (isLoadingTeams || isLoadingPolls) {
+    if (!teams || isLoadingPolls) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        Loading...
       </div>
     );
   }
@@ -124,54 +126,51 @@ export default function ManagePolls() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Team 1</label>
-                <select 
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                <Select
                   value={team1Id}
-                  onChange={(e) => setTeam1Id(e.target.value)}
+                  onValueChange={setTeam1Id}
                 >
-                  <option value="">Select Team 1</option>
-                  {teams?.map((team: Team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Team 1" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams?.map((team: Team) => (
+                      <SelectItem key={team.id} value={team.id.toString()}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Team 2</label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                <Select
                   value={team2Id}
-                  onChange={(e) => setTeam2Id(e.target.value)}
+                  onValueChange={setTeam2Id}
                 >
-                  <option value="">Select Team 2</option>
-                  {teams?.map((team: Team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
-                  ))}
-                </select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Team 2" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams?.map((team: Team) => (
+                      <SelectItem key={team.id} value={team.id.toString()}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Completion Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {completionDate ? format(completionDate, 'PPP') : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={completionDate}
-                    onSelect={setCompletionDate}
-                    disabled={(date) => date < new Date()}
-                  />
-                </PopoverContent>
-              </Popover>
+              <Calendar
+                mode="single"
+                selected={completionDate}
+                onSelect={setCompletionDate}
+                disabled={(date) => date < new Date()}
+              />
             </div>
 
             <Button 
@@ -185,7 +184,7 @@ export default function ManagePolls() {
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
+            <div className="space-y-4">
         <h2 className="text-2xl font-bold mb-4">Active Polls</h2>
         {polls?.map((poll: any) => (
           <Card key={poll.id} className="overflow-hidden">
