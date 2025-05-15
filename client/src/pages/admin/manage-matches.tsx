@@ -88,12 +88,12 @@ const newMatchSchema = z.object({
 
 // Update match result schema
 const updateResultSchema = z.object({
-  tossWinnerId: z.coerce.number().positive("Please select the toss winner"),
-  matchWinnerId: z.coerce.number().positive("Please select the match winner"),
+  tossWinnerId: z.coerce.number().positive("Please select the toss winner").optional(),
+  matchWinnerId: z.coerce.number().positive("Please select the match winner").optional(),
   team1Score: z.string().optional(),
   team2Score: z.string().optional(),
-  resultSummary: z.string().min(1, "Result summary is required"),
-  status: z.enum(['upcoming', 'ongoing', 'completed']).default('completed'),
+  resultSummary: z.string().min(1, "Result summary is required").optional(),
+  status: z.enum(['upcoming', 'ongoing', 'completed', 'tie', 'void']).default('completed'),
 });
 
 const ManageMatches = () => {
@@ -105,7 +105,7 @@ const ManageMatches = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [customTeamDialog, setCustomTeamDialog] = useState(false);
   const [customTeamFor, setCustomTeamFor] = useState<'team1' | 'team2'>('team1');
-  
+
   // Fetch all matches
   const { data: matches, isLoading: isLoadingMatches } = useQuery<MatchWithTeams[]>({
     queryKey: ['/api/matches'],
@@ -115,7 +115,7 @@ const ManageMatches = () => {
       return res.json();
     }
   });
-  
+
   // Fetch all teams for dropdowns
   const { data: teams, isLoading: isLoadingTeams } = useQuery<Team[]>({
     queryKey: ['/api/teams'],
@@ -125,13 +125,13 @@ const ManageMatches = () => {
       return res.json();
     }
   });
-  
+
   // Create match form
   // Custom team form schema
   const customTeamSchema = z.object({
     name: z.string().min(1, "Team name is required"),
   });
-  
+
   const createMatchForm = useForm<z.infer<typeof newMatchSchema>>({
     resolver: zodResolver(newMatchSchema),
     defaultValues: {
@@ -140,14 +140,14 @@ const ManageMatches = () => {
       status: 'upcoming',
     },
   });
-  
+
   const customTeamForm = useForm<z.infer<typeof customTeamSchema>>({
     resolver: zodResolver(customTeamSchema),
     defaultValues: {
       name: '',
     },
   });
-  
+
   // Update match result form
   const updateResultForm = useForm<z.infer<typeof updateResultSchema>>({
     resolver: zodResolver(updateResultSchema),
@@ -155,7 +155,7 @@ const ManageMatches = () => {
       status: 'completed',
     },
   });
-  
+
   // Create match mutation
   const createMatchMutation = useMutation({
     mutationFn: async (data: z.infer<typeof newMatchSchema>) => {
@@ -179,7 +179,7 @@ const ManageMatches = () => {
       });
     },
   });
-  
+
   // Update match result mutation
   const updateMatchMutation = useMutation({
     mutationFn: async (data: { id: number; result: z.infer<typeof updateResultSchema> }) => {
@@ -204,7 +204,7 @@ const ManageMatches = () => {
       });
     },
   });
-  
+
   // Create custom team mutation
   const createCustomTeamMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -222,7 +222,7 @@ const ManageMatches = () => {
       queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
       setCustomTeamDialog(false);
       customTeamForm.reset();
-      
+
       // Set the newly created team in the appropriate field
       if (customTeamFor === 'team1') {
         createMatchForm.setValue('team1Id', team.id);
@@ -238,7 +238,7 @@ const ManageMatches = () => {
       });
     },
   });
-  
+
   // Delete match mutation
   const deleteMatchMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -261,16 +261,16 @@ const ManageMatches = () => {
       });
     },
   });
-  
+
   // Form submission handlers
   const onCreateMatchSubmit = (data: z.infer<typeof newMatchSchema>) => {
     createMatchMutation.mutate(data);
   };
-  
+
   const onCustomTeamSubmit = (data: z.infer<typeof customTeamSchema>) => {
     createCustomTeamMutation.mutate(data.name);
   };
-  
+
   const handleTeamSelectChange = (value: string, fieldName: 'team1Id' | 'team2Id') => {
     if (value === 'custom') {
       setCustomTeamFor(fieldName === 'team1Id' ? 'team1' : 'team2');
@@ -279,12 +279,12 @@ const ManageMatches = () => {
       createMatchForm.setValue(fieldName, Number(value));
     }
   };
-  
+
   const onUpdateResultSubmit = (data: z.infer<typeof updateResultSchema>) => {
     if (!selectedMatch) return;
     updateMatchMutation.mutate({ id: selectedMatch.id, result: data });
   };
-  
+
   const handleUpdateMatch = (match: MatchWithTeams) => {
     setSelectedMatch(match);
     updateResultForm.reset({
@@ -293,27 +293,27 @@ const ManageMatches = () => {
       team1Score: match.team1Score || '',
       team2Score: match.team2Score || '',
       resultSummary: match.resultSummary || '',
-      status: 'completed',
+      status: match.status,
     });
     setUpdateDialogOpen(true);
   };
-  
+
   const handleDeleteMatch = (match: MatchWithTeams) => {
     setSelectedMatch(match);
     setDeleteDialogOpen(true);
   };
-  
+
   const confirmDeleteMatch = () => {
     if (!selectedMatch) return;
     deleteMatchMutation.mutate(selectedMatch.id);
   };
-  
+
   // Filter matches by status
   const filteredMatches = matches?.filter(match => {
     if (activeTab === 'all') return true;
     return match.status === activeTab;
   });
-  
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -322,7 +322,7 @@ const ManageMatches = () => {
           <Plus className="mr-2 h-4 w-4" /> Add New Match
         </Button>
       </div>
-      
+
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList>
           <TabsTrigger value="all">All Matches</TabsTrigger>
@@ -331,7 +331,7 @@ const ManageMatches = () => {
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
       </Tabs>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Match List</CardTitle>
@@ -407,7 +407,7 @@ const ManageMatches = () => {
           )}
         </CardContent>
       </Card>
-      
+
       {/* Create Match Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-md">
@@ -417,7 +417,7 @@ const ManageMatches = () => {
               Add a new cricket match to the system
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...createMatchForm}>
             <form onSubmit={createMatchForm.handleSubmit(onCreateMatchSubmit)} className="space-y-6">
               <FormField
@@ -433,7 +433,7 @@ const ManageMatches = () => {
                   </FormItem>
                 )}
               />
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={createMatchForm.control}
@@ -463,7 +463,7 @@ const ManageMatches = () => {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={createMatchForm.control}
                   name="team2Id"
@@ -493,7 +493,7 @@ const ManageMatches = () => {
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={createMatchForm.control}
                 name="location"
@@ -507,7 +507,7 @@ const ManageMatches = () => {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={createMatchForm.control}
                 name="matchDate"
@@ -558,7 +558,7 @@ const ManageMatches = () => {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={createMatchForm.control}
                 name="status"
@@ -584,7 +584,7 @@ const ManageMatches = () => {
                   </FormItem>
                 )}
               />
-              
+
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -604,7 +604,7 @@ const ManageMatches = () => {
           </Form>
         </DialogContent>
       </Dialog>
-      
+
       {/* Update Match Result Dialog */}
       {selectedMatch && (
         <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
@@ -615,9 +615,42 @@ const ManageMatches = () => {
                 Set the final result for {selectedMatch.team1.name} vs {selectedMatch.team2.name}
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...updateResultForm}>
               <form onSubmit={updateResultForm.handleSubmit(onUpdateResultSubmit)} className="space-y-6">
+                <FormField
+                control={updateResultForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Match Status</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (value === 'void') {
+                          updateResultForm.setValue('tossWinnerId', undefined);
+                          updateResultForm.setValue('matchWinnerId', undefined);
+                        }
+                      }}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select match status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="tie">Tie</SelectItem>
+                        <SelectItem value="void">Void</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {updateResultForm.watch('status') !== 'void' && (
                 <FormField
                   control={updateResultForm.control}
                   name="tossWinnerId"
@@ -646,7 +679,9 @@ const ManageMatches = () => {
                     </FormItem>
                   )}
                 />
-                
+              )}
+
+              {updateResultForm.watch('status') === 'completed' && (
                 <FormField
                   control={updateResultForm.control}
                   name="matchWinnerId"
@@ -675,7 +710,8 @@ const ManageMatches = () => {
                     </FormItem>
                   )}
                 />
-                
+              )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={updateResultForm.control}
@@ -690,7 +726,7 @@ const ManageMatches = () => {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={updateResultForm.control}
                     name="team2Score"
@@ -705,7 +741,7 @@ const ManageMatches = () => {
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={updateResultForm.control}
                   name="resultSummary"
@@ -725,7 +761,7 @@ const ManageMatches = () => {
                     </FormItem>
                   )}
                 />
-                
+
                 <DialogFooter>
                   <Button 
                     type="button" 
@@ -746,7 +782,7 @@ const ManageMatches = () => {
           </DialogContent>
         </Dialog>
       )}
-      
+
       {/* Delete Match Confirmation Dialog */}
       {selectedMatch && (
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -757,7 +793,7 @@ const ManageMatches = () => {
                 Are you sure you want to delete this match? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="py-4">
               <p className="font-medium">{selectedMatch.tournamentName}</p>
               <p className="text-neutral-600">
@@ -767,7 +803,7 @@ const ManageMatches = () => {
                 {format(new Date(selectedMatch.matchDate), 'dd MMM yyyy, HH:mm')}
               </p>
             </div>
-            
+
             <DialogFooter>
               <Button 
                 type="button" 
@@ -787,7 +823,7 @@ const ManageMatches = () => {
           </DialogContent>
         </Dialog>
       )}
-      
+
       {/* Custom Team Dialog */}
       <Dialog open={customTeamDialog} onOpenChange={setCustomTeamDialog}>
         <DialogContent className="max-w-md">
@@ -797,7 +833,7 @@ const ManageMatches = () => {
               Add a custom team for this match
             </DialogDescription>
           </DialogHeader>
-          
+
           <Form {...customTeamForm}>
             <form onSubmit={customTeamForm.handleSubmit(onCustomTeamSubmit)} className="space-y-6">
               <FormField
@@ -813,7 +849,7 @@ const ManageMatches = () => {
                   </FormItem>
                 )}
               />
-              
+
               <DialogFooter>
                 <Button 
                   type="button" 

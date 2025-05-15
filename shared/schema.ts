@@ -6,7 +6,7 @@ import { z } from "zod";
 export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
 
 // Match status enum
-export const matchStatusEnum = pgEnum('match_status', ['upcoming', 'ongoing', 'completed']);
+export const matchStatusEnum = pgEnum('match_status', ['upcoming', 'ongoing', 'completed', 'tie', 'void']);
 
 // Users table
 export const users = pgTable("users", {
