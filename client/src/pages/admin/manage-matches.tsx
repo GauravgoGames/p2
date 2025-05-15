@@ -650,7 +650,7 @@ const ManageMatches = () => {
                 )}
               />
 
-              {updateResultForm.watch('status') !== 'void' && (
+              {updateResultForm.watch('status') !== 'void' && updateResultForm.watch('status') !== 'tie' && (
                 <FormField
                   control={updateResultForm.control}
                   name="tossWinnerId"
