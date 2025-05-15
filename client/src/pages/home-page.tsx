@@ -150,6 +150,31 @@ const HomePage = () => {
         </div>
       </div>
       
+      {/* Audience Choice Polls */}
+      <div className="mb-10">
+        <h2 className="text-2xl font-bold mb-6 font-heading text-neutral-800">Audience Choice</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {isLoadingPolls ? (
+            Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-md p-6">
+                <Skeleton className="h-6 w-1/3 mb-4" />
+                <Skeleton className="h-20 w-full mb-4" />
+                <Skeleton className="h-2 w-full" />
+              </div>
+            ))
+          ) : (
+            <>
+              {activePolls?.map(poll => (
+                <AudiencePoll key={poll.id} poll={poll} />
+              ))}
+              {completedPolls?.map(poll => (
+                <AudiencePoll key={poll.id} poll={poll} />
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+      
       <Leaderboard />
       <FeatureCards />
     </div>

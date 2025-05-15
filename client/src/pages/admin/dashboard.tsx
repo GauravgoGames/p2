@@ -56,16 +56,16 @@ const AdminDashboard = () => {
         fetch('/api/leaderboard?timeframe=all-time'),
         fetch('/api/admin/all-predictions')
       ]);
-      
+
       // Handle API errors
       if (!usersRes.ok || !matchesRes.ok || !leaderboardRes.ok) {
         throw new Error('Failed to fetch dashboard statistics');
       }
-      
+
       const users = await usersRes.json();
       const matches = await matchesRes.json();
       const leaderboard = await leaderboardRes.json();
-      
+
       // Calculate unique predictions (count by unique userId + matchId combinations)
       let predictionCount = 0;
       if (predictionsRes.ok) {
@@ -77,7 +77,7 @@ const AdminDashboard = () => {
         });
         predictionCount = uniquePredictions.size;
       }
-      
+
       return {
         userCount: users.length,
         matchesCount: {
@@ -90,7 +90,7 @@ const AdminDashboard = () => {
       };
     }
   });
-  
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -116,7 +116,7 @@ const AdminDashboard = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card>
@@ -136,7 +136,7 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
@@ -154,7 +154,7 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
@@ -174,7 +174,7 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
@@ -193,7 +193,7 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Match Status */}
         <Card className="lg:col-span-2">
@@ -220,7 +220,7 @@ const AdminDashboard = () => {
                   Manage Matches
                 </button>
               </div>
-              
+
               <div className="border rounded-lg p-4 text-center">
                 <div className="w-12 h-12 rounded-full bg-success/20 mx-auto flex items-center justify-center mb-3">
                   <PlayCircle className="h-6 w-6 text-success" />
@@ -238,7 +238,7 @@ const AdminDashboard = () => {
                   Update Results
                 </button>
               </div>
-              
+
               <div className="border rounded-lg p-4 text-center">
                 <div className="w-12 h-12 rounded-full bg-neutral-200 mx-auto flex items-center justify-center mb-3">
                   <Clock className="h-6 w-6 text-neutral-700" />
@@ -257,7 +257,7 @@ const AdminDashboard = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="mt-6">
               <Tabs defaultValue="create">
                 <TabsList className="w-full">
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         {/* Top Users */}
         <Card>
           <CardHeader>
@@ -323,7 +323,7 @@ const AdminDashboard = () => {
             ) : (
               <p className="text-center py-4 text-neutral-500">No user data available</p>
             )}
-            
+
             <div className="mt-6">
               <button 
                 onClick={() => window.location.href = '/admin/users'}
@@ -332,6 +332,19 @@ const AdminDashboard = () => {
                 View All Users
               </button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Audience Choice Polls */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Audience Choice Polls</CardTitle>
+            <CardDescription>Create and manage audience polls</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.href = '/admin/polls'} className="w-full">
+              Manage Polls
+            </Button>
           </CardContent>
         </Card>
       </div>

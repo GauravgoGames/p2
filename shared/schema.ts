@@ -150,5 +150,33 @@ export type InsertPrediction = z.infer<typeof insertPredictionSchema>;
 
 export type PointsLedgerEntry = typeof pointsLedger.$inferSelect;
 
+// Polls table
+export const polls = pgTable("polls", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  team1Id: integer("team1_id").notNull(),
+  team2Id: integer("team2_id").notNull(),
+  completionDate: timestamp("completion_date").notNull(),
+  status: text("status").default('active').notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Poll votes table
+export const pollVotes = pgTable("poll_votes", {
+  id: serial("id").primaryKey(),
+  pollId: integer("poll_id").notNull(),
+  teamId: integer("team_id").notNull(),
+  userId: integer("user_id"), // Optional for non-logged in users
+  ipAddress: text("ip_address").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const pollSchema = createInsertSchema(polls).extend({
+  completionDate: z.string().transform(str => new Date(str)),
+});
+
+export type Poll = typeof polls.$inferSelect;
+export type InsertPoll = z.infer<typeof pollSchema>;
+export type PollVote = typeof pollVotes.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type InsertSiteSetting = z.infer<typeof siteSettingsSchema>;
