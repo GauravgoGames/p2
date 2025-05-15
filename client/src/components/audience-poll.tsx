@@ -17,7 +17,7 @@ interface PollProps {
   };
 }
 
-export const AudiencePoll = ({ poll }: PollProps) => {
+const AudiencePoll = ({ poll }: PollProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
@@ -112,3 +112,5 @@ export const AudiencePoll = ({ poll }: PollProps) => {
     </div>
   );
 };
+
+export default AudiencePoll;
