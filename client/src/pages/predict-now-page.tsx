@@ -151,6 +151,34 @@ const PredictNowPage = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold mb-6 font-heading">Predict Matches</h1>
       
+      <div className="bg-white shadow-md rounded-lg p-4 mb-4">
+        <h2 className="text-xl font-bold mb-4">How Points Are Earned</h2>
+        <div className="bg-neutral-50 rounded-lg p-4 border">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-neutral-200">
+                <th className="text-left py-2">Prediction Type</th>
+                <th className="text-right py-2">Points Awarded</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-neutral-200">
+                <td className="py-2">Correct Toss Winner</td>
+                <td className="text-right py-2">1 point</td>
+              </tr>
+              <tr className="border-b border-neutral-200">
+                <td className="py-2">Correct Match Winner</td>
+                <td className="text-right py-2">1 point</td>
+              </tr>
+              <tr>
+                <td className="py-2 text-red-600">Match becomes VOID or TIE</td>
+                <td className="text-right py-2 text-red-600">No points</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="bg-white shadow-md rounded-lg p-4 mb-8">
         <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
           <div className="relative w-full md:w-1/3">
