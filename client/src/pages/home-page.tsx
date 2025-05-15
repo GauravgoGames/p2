@@ -43,25 +43,17 @@ const HomePage = () => {
     enabled: !!user,
   });
 
-  // Fetch polls
-  const { data: activePolls, isLoading: isLoadingPolls } = useQuery({
-    queryKey: ['activePolls'],
+  const { data: polls, isLoading } = useQuery({
+    queryKey: ['/api/polls'],
     queryFn: async () => {
-      const res = await fetch('/api/polls/active');
-      if (!res.ok) throw new Error('Failed to fetch active polls');
+      const res = await fetch('/api/polls');
+      if (!res.ok) throw new Error('Failed to fetch polls');
       return res.json();
     }
   });
 
-    // Fetch completed polls
-    const { data: completedPolls } = useQuery({
-      queryKey: ['completedPolls'],
-      queryFn: async () => {
-        const res = await fetch('/api/polls/completed');
-        if (!res.ok) throw new Error('Failed to fetch completed polls');
-        return res.json();
-      }
-    });
+  const activePolls = polls?.filter(poll => new Date(poll.completionDate) > new Date());
+  const completedPolls = polls?.filter(poll => new Date(poll.completionDate) <= new Date());
 
   const filterMatchesByStatus = (status: string) => {
     if (!matches) return [];
@@ -101,7 +93,7 @@ const HomePage = () => {
     ));
   };
 
-  const { isLoading } = useQuery(['activePolls', 'completedPolls'], () => Promise.all([
+  const { isLoading: allPollsLoading } = useQuery(['activePolls', 'completedPolls'], () => Promise.all([
     fetch('/api/polls/active').then(res => res.json()),
     fetch('/api/polls/completed').then(res => res.json())
   ]), {
