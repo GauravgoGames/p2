@@ -1,11 +1,21 @@
-#!/usr/bin/env node
-const { spawn } = require('child_process');
+
+// Server startup script
+import { spawn } from 'child_process';
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
 console.log('Starting ProAce Predictions...');
 
-// Set default port to 3000 if not specified
-process.env.PORT = process.env.PORT || '3000';
+// Load environment variables from .env file
+config();
 
-const server = spawn('node', ['server/index.js'], {
+// Set the PORT environment variable if not already set
+if (!process.env.PORT) {
+  process.env.PORT = '5000';
+}
+
+const server = spawn('node', ['dist/server/index.js'], {
   stdio: 'inherit',
   env: { ...process.env, NODE_ENV: 'production' }
 });
@@ -16,11 +26,13 @@ server.on('close', (code) => {
 
 // Handle process termination
 process.on('SIGINT', () => {
+  console.log('Shutting down...');
   server.kill('SIGINT');
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
+  console.log('Shutting down...');
   server.kill('SIGTERM');
   process.exit(0);
 });
