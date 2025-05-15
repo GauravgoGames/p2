@@ -434,8 +434,8 @@ export class MemStorage implements IStorage {
       let pointsEarned = 0;
       let reasons = [];
       
-      // Toss winner prediction point - award for all completed matches including ties, except void
-      if (match.status !== 'void' && match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
+      // Toss winner prediction point - award for all matches with a toss result
+      if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
         pointsEarned += 1;
         reasons.push("Correct toss prediction");
       }
