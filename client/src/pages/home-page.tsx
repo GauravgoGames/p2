@@ -9,6 +9,7 @@ import Leaderboard from '@/components/leaderboard';
 // Removed upcoming events as per issue #6
 import MatchCard from '@/components/match-card';
 import { useAuth } from '@/hooks/use-auth';
+import AudiencePoll from '@/components/audience-poll'; // Import AudiencePoll component
 
 type MatchWithTeams = Match & {
   team1: Team;
@@ -20,7 +21,7 @@ type MatchWithTeams = Match & {
 const HomePage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('ongoing');
-  
+
   // Fetch matches
   const { data: matches, isLoading: isLoadingMatches } = useQuery<MatchWithTeams[]>({
     queryKey: ['/api/matches'],
@@ -30,7 +31,7 @@ const HomePage = () => {
       return res.json();
     }
   });
-  
+
   // Fetch user predictions if user is logged in
   const { data: predictions } = useQuery<Prediction[]>({
     queryKey: ['/api/predictions'],
@@ -41,21 +42,41 @@ const HomePage = () => {
     },
     enabled: !!user,
   });
-  
+
+  // Fetch polls
+  const { data: activePolls, isLoading: isLoadingPolls } = useQuery({
+    queryKey: ['activePolls'],
+    queryFn: async () => {
+      const res = await fetch('/api/polls/active');
+      if (!res.ok) throw new Error('Failed to fetch active polls');
+      return res.json();
+    }
+  });
+
+    // Fetch completed polls
+    const { data: completedPolls } = useQuery({
+      queryKey: ['completedPolls'],
+      queryFn: async () => {
+        const res = await fetch('/api/polls/completed');
+        if (!res.ok) throw new Error('Failed to fetch completed polls');
+        return res.json();
+      }
+    });
+
   const filterMatchesByStatus = (status: string) => {
     if (!matches) return [];
     return matches.filter(match => match.status === status);
   };
-  
+
   const getUserPredictionForMatch = (matchId: number) => {
     if (!predictions) return undefined;
     return predictions.find(p => p.matchId === matchId);
   };
-  
+
   const ongoingMatches = filterMatchesByStatus('ongoing');
   const upcomingMatches = filterMatchesByStatus('upcoming');
   const completedMatches = filterMatchesByStatus('completed');
-  
+
   const renderMatchesSkeleton = () => {
     return Array.from({ length: 3 }).map((_, i) => (
       <div key={i} className="bg-white rounded-xl shadow-md p-4">
@@ -79,11 +100,11 @@ const HomePage = () => {
       </div>
     ));
   };
-  
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <HeroSection />
-      
+
       <div id="ongoing-matches" className="bg-white shadow-md rounded-lg mb-8">
         <Tabs defaultValue="upcoming" value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="flex justify-start border-b border-neutral-200 w-full rounded-none">
@@ -108,13 +129,13 @@ const HomePage = () => {
           </TabsList>
         </Tabs>
       </div>
-      
+
       <div className="mb-10">
         <h2 className="text-2xl font-bold mb-6 font-heading text-neutral-800">
           {activeTab === 'ongoing' ? 'Ongoing Matches' : 
            activeTab === 'upcoming' ? 'Upcoming Matches' : 'Completed Matches'}
         </h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoadingMatches ? (
             renderMatchesSkeleton()
@@ -149,7 +170,7 @@ const HomePage = () => {
           )}
         </div>
       </div>
-      
+
       {/* Audience Choice Polls */}
       <div className="mb-10">
         <h2 className="text-2xl font-bold mb-6 font-heading text-neutral-800">Audience Choice</h2>
@@ -174,7 +195,7 @@ const HomePage = () => {
           )}
         </div>
       </div>
-      
+
       <Leaderboard />
       <FeatureCards />
     </div>
