@@ -1,7 +1,7 @@
 
-const { spawn } = require('child_process');
-const dotenv = require('dotenv');
-const path = require('path');
+import { spawn } from 'child_process';
+import dotenv from 'dotenv';
+import path from 'path';
 
 console.log('Starting ProAce Predictions...');
 
@@ -21,7 +21,11 @@ const server = spawn('node', ['dist/index.js'], {
 });
 
 server.on('error', (err) => {
-  console.error('Failed to start server:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${process.env.PORT} is already in use. Please free up the port and try again.`);
+  } else {
+    console.error('Failed to start server:', err);
+  }
   process.exit(1);
 });
 
