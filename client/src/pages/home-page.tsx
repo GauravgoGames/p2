@@ -19,7 +19,7 @@ type MatchWithTeams = Match & {
 
 const HomePage = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<string>('ongoing');
+  const [activeTab, setActiveTab] = useState<string>('upcoming');
   
   // Fetch matches
   const { data: matches, isLoading: isLoadingMatches } = useQuery<MatchWithTeams[]>({
