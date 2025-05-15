@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -232,30 +233,6 @@ const LeaderboardPage = () => {
             </Bar>
           </BarChart>
         </ChartContainer>
-      </div>
-
-
-        <div className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="bg-green-100 p-2 rounded-full mt-0.5">
-              <Trophy className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg">Match Winner Prediction</h3>
-              <p className="text-neutral-600">+1 point for correctly predicting the match winner</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <div className="bg-blue-100 p-2 rounded-full mt-0.5">
-              <Medal className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg">Toss Winner Prediction</h3>
-              <p className="text-neutral-600">+1 point for correctly predicting the toss winner</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
