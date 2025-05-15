@@ -1,7 +1,3 @@
-` tags. I will pay close attention to preserving the indentation and structure of the original code.
-
-```
-<replit_final_file>
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { format } from 'date-fns';
 import { Team } from '@shared/schema';
 
 export default function ManagePolls() {
@@ -46,6 +41,7 @@ export default function ManagePolls() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
+
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || 'Failed to create poll');
@@ -72,8 +68,7 @@ export default function ManagePolls() {
   const handleCreatePoll = () => {
     if (!title || !team1Id || !team2Id || !completionDate) {
       toast({
-        title: 'Validation Error',
-        description: 'All fields are required',
+        title: 'All fields are required',
         variant: 'destructive'
       });
       return;
@@ -81,8 +76,7 @@ export default function ManagePolls() {
 
     if (team1Id === team2Id) {
       toast({
-        title: 'Invalid team selection',
-        description: 'Please select different teams',
+        title: 'Please select different teams',
         variant: 'destructive'
       });
       return;
