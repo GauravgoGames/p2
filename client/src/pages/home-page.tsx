@@ -43,7 +43,7 @@ const HomePage = () => {
     enabled: !!user,
   });
 
-  const { data: polls, isLoading } = useQuery({
+  const { data: polls, isLoading: isLoadingPolls } = useQuery({
     queryKey: ['/api/polls'],
     queryFn: async () => {
       const res = await fetch('/api/polls');
@@ -52,8 +52,9 @@ const HomePage = () => {
     }
   });
 
-  const activePolls = polls?.filter(poll => new Date(poll.completionDate) > new Date());
-  const completedPolls = polls?.filter(poll => new Date(poll.completionDate) <= new Date());
+  const now = new Date();
+  const activePolls = polls?.filter(poll => new Date(poll.completionDate) > now) ?? [];
+  const completedPolls = polls?.filter(poll => new Date(poll.completionDate) <= now) ?? [];
 
   const filterMatchesByStatus = (status: string) => {
     if (!matches) return [];

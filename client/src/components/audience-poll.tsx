@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Poll, Team } from '@shared/schema';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 interface PollProps {
@@ -23,8 +22,8 @@ export default function AudiencePoll({ poll }: PollProps) {
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
 
   const totalVotes = poll.votes.team1Count + poll.votes.team2Count;
-  const team1Percentage = totalVotes > 0 ? (poll.votes.team1Count / totalVotes) * 100 : 50;
-  const team2Percentage = totalVotes > 0 ? (poll.votes.team2Count / totalVotes) * 100 : 50;
+  const team1Percentage = totalVotes ? Math.round((poll.votes.team1Count / totalVotes) * 100) : 0;
+  const team2Percentage = totalVotes ? Math.round((poll.votes.team2Count / totalVotes) * 100) : 0;
 
   const voteMutation = useMutation({
     mutationFn: async (teamId: number) => {
@@ -33,14 +32,19 @@ export default function AudiencePoll({ poll }: PollProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamId })
       });
-      if (!res.ok) throw new Error('Failed to submit vote');
+      if (!res.ok) {
+        throw new Error('Failed to submit vote');
+      }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/polls'] });
-      toast({
-        title: 'Vote Submitted',
-        description: 'Your vote has been recorded successfully',
+      toast({ title: 'Vote submitted successfully' });
+    },
+    onError: () => {
+      toast({ 
+        title: 'Failed to submit vote',
+        variant: 'destructive'
       });
     }
   });
@@ -53,59 +57,61 @@ export default function AudiencePoll({ poll }: PollProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
+    <div className="bg-card rounded-xl shadow p-6">
       <h3 className="text-xl font-bold mb-4">{poll.title}</h3>
       
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <button 
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
             onClick={() => handleVote(poll.team1Id)}
             disabled={selectedTeam !== null}
-            className={`flex-1 p-4 rounded-lg border transition-all ${
-              selectedTeam === poll.team1Id ? 'bg-primary/10 border-primary' : 'hover:border-primary'
+            className={`flex items-center gap-3 p-4 rounded-lg border transition-colors ${
+              selectedTeam === poll.team1Id 
+                ? 'bg-primary/10 border-primary' 
+                : 'hover:border-primary'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <img 
-                src={poll.team1.logoUrl || 'https://via.placeholder.com/40'} 
-                alt={poll.team1.name} 
-                className="w-10 h-10 rounded-full"
-              />
-              <div className="text-left">
-                <p className="font-semibold">{poll.team1.name}</p>
-                <p className="text-sm text-neutral-500">{poll.votes.team1Count} votes</p>
-              </div>
+            <img
+              src={poll.team1.logoUrl || '/default-team-logo.png'}
+              alt={poll.team1.name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div className="text-left">
+              <p className="font-semibold">{poll.team1.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {poll.votes.team1Count} votes
+              </p>
             </div>
           </button>
-          
-          <span className="text-2xl font-bold text-neutral-300">VS</span>
-          
-          <button 
+
+          <button
             onClick={() => handleVote(poll.team2Id)}
             disabled={selectedTeam !== null}
-            className={`flex-1 p-4 rounded-lg border transition-all ${
-              selectedTeam === poll.team2Id ? 'bg-primary/10 border-primary' : 'hover:border-primary'
+            className={`flex items-center gap-3 p-4 rounded-lg border transition-colors ${
+              selectedTeam === poll.team2Id 
+                ? 'bg-primary/10 border-primary' 
+                : 'hover:border-primary'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <img 
-                src={poll.team2.logoUrl || 'https://via.placeholder.com/40'} 
-                alt={poll.team2.name} 
-                className="w-10 h-10 rounded-full"
-              />
-              <div className="text-left">
-                <p className="font-semibold">{poll.team2.name}</p>
-                <p className="text-sm text-neutral-500">{poll.votes.team2Count} votes</p>
-              </div>
+            <img
+              src={poll.team2.logoUrl || '/default-team-logo.png'}
+              alt={poll.team2.name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div className="text-left">
+              <p className="font-semibold">{poll.team2.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {poll.votes.team2Count} votes
+              </p>
             </div>
           </button>
         </div>
-        
+
         <div className="space-y-2">
           <Progress value={team1Percentage} className="h-2" />
-          <div className="flex justify-between text-sm text-neutral-500">
-            <span>{team1Percentage.toFixed(1)}%</span>
-            <span>{team2Percentage.toFixed(1)}%</span>
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{team1Percentage}%</span>
+            <span>{team2Percentage}%</span>
           </div>
         </div>
       </div>
