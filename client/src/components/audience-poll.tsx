@@ -1,8 +1,10 @@
+
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Poll, Team } from '@shared/schema';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
 
 interface PollProps {
   poll: Poll & {
@@ -35,7 +37,7 @@ export default function AudiencePoll({ poll }: PollProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/polls'] });
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
       toast({ title: 'Vote submitted successfully' });
     },
     onError: () => {
@@ -55,31 +57,29 @@ export default function AudiencePoll({ poll }: PollProps) {
       <h3 className="text-xl font-bold mb-4">{poll.title}</h3>
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
+          <Button
             onClick={() => handleVote(poll.team1Id)}
             disabled={selectedTeam !== null}
-            className={`flex items-center gap-3 p-4 rounded-lg border ${
-              selectedTeam === poll.team1Id ? 'bg-primary/10 border-primary' : 'hover:border-primary'
-            }`}
+            variant={selectedTeam === poll.team1Id ? "secondary" : "outline"}
+            className="h-auto py-4"
           >
             <div className="text-left">
               <p className="font-semibold">{poll.team1.name}</p>
               <p className="text-sm text-muted-foreground">{poll.votes.team1Count} votes</p>
             </div>
-          </button>
+          </Button>
 
-          <button
+          <Button
             onClick={() => handleVote(poll.team2Id)}
             disabled={selectedTeam !== null}
-            className={`flex items-center gap-3 p-4 rounded-lg border ${
-              selectedTeam === poll.team2Id ? 'bg-primary/10 border-primary' : 'hover:border-primary'
-            }`}
+            variant={selectedTeam === poll.team2Id ? "secondary" : "outline"}
+            className="h-auto py-4"
           >
             <div className="text-left">
               <p className="font-semibold">{poll.team2.name}</p>
               <p className="text-sm text-muted-foreground">{poll.votes.team2Count} votes</p>
             </div>
-          </button>
+          </Button>
         </div>
 
         <div className="space-y-2">

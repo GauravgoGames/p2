@@ -1,3 +1,7 @@
+` tags. I will pay close attention to preserving the indentation and structure of the original code.
+
+```
+<replit_final_file>
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,15 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { z } from 'zod';
 import { Team } from '@shared/schema';
-
-const pollSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  team1Id: z.number().min(1, "Team 1 is required"),
-  team2Id: z.number().min(1, "Team 2 is required"),
-  completionDate: z.date().min(new Date(), "Completion date must be in the future")
-});
 
 export default function ManagePolls() {
   const { toast } = useToast();
@@ -26,7 +22,7 @@ export default function ManagePolls() {
   const [completionDate, setCompletionDate] = useState<Date>();
 
   const { data: teams } = useQuery({
-    queryKey: ['/api/teams'],
+    queryKey: ['teams'],
     queryFn: async () => {
       const res = await fetch('/api/teams');
       if (!res.ok) throw new Error('Failed to fetch teams');
@@ -34,7 +30,7 @@ export default function ManagePolls() {
     }
   });
 
-    const { data: polls, isLoading: isLoadingPolls } = useQuery({
+  const { data: polls, isLoading: isLoadingPolls } = useQuery({
     queryKey: ['/api/polls'],
     queryFn: async () => {
       const res = await fetch('/api/polls');
@@ -44,7 +40,7 @@ export default function ManagePolls() {
   });
 
   const createPollMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof pollSchema>) => {
+    mutationFn: async (data: { title: string; team1Id: number; team2Id: number; completionDate: Date }) => {
       const res = await fetch('/api/polls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -57,7 +53,7 @@ export default function ManagePolls() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/polls'] });
+      queryClient.invalidateQueries({ queryKey: ['polls'] });
       toast({ title: 'Poll created successfully' });
       setTitle('');
       setTeam1Id('');
@@ -74,28 +70,33 @@ export default function ManagePolls() {
   });
 
   const handleCreatePoll = () => {
-    try {
-      const validatedData = pollSchema.parse({
-        title,
-        team1Id: parseInt(team1Id),
-        team2Id: parseInt(team2Id),
-        completionDate
+    if (!title || !team1Id || !team2Id || !completionDate) {
+      toast({
+        title: 'Validation Error',
+        description: 'All fields are required',
+        variant: 'destructive'
       });
-
-      createPollMutation.mutate(validatedData);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessages = error.errors.map(err => err.message).join(', ');
-        toast({
-          title: 'Validation Error',
-          description: errorMessages,
-          variant: 'destructive'
-        });
-      }
+      return;
     }
+
+    if (team1Id === team2Id) {
+      toast({
+        title: 'Invalid team selection',
+        description: 'Please select different teams',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    createPollMutation.mutate({
+      title,
+      team1Id: parseInt(team1Id),
+      team2Id: parseInt(team2Id),
+      completionDate
+    });
   };
 
-    if (!teams || isLoadingPolls) {
+  if (!teams || isLoadingPolls) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         Loading...
@@ -184,7 +185,7 @@ export default function ManagePolls() {
         </CardContent>
       </Card>
 
-            <div className="space-y-4">
+      <div className="space-y-4">
         <h2 className="text-2xl font-bold mb-4">Active Polls</h2>
         {polls?.map((poll: any) => (
           <Card key={poll.id} className="overflow-hidden">
