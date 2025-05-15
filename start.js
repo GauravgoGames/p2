@@ -8,39 +8,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 console.log('Starting ProAce Predictions...');
 
-// Load environment variables from .env file
-dotenv.config({ path: join(__dirname, '.env') });
+// Load environment variables
+dotenv.config();
 
-// Set default port if not specified
-process.env.PORT = process.env.PORT || '5000';
+// Set default port
+process.env.PORT = process.env.PORT || '3000';
+process.env.NODE_ENV = 'production';
 
 // Start the server process
 const server = spawn('node', ['dist/index.js'], {
   stdio: 'inherit',
-  env: { ...process.env, NODE_ENV: 'production' },
-  cwd: __dirname
+  env: process.env,
+  cwd: process.cwd()
 });
 
-// Handle server events
 server.on('error', (err) => {
   console.error('Failed to start server:', err);
   process.exit(1);
 });
 
-server.on('close', (code) => {
-  console.log(`Server process exited with code ${code}`);
-  if (code !== 0) {
-    process.exit(code);
-  }
-});
-
 // Handle process termination
-process.on('SIGINT', () => {
+const cleanup = () => {
   console.log('Shutting down...');
-  server.kill('SIGINT');
-});
+  server.kill();
+};
 
-process.on('SIGTERM', () => {
-  console.log('Shutting down...');
-  server.kill('SIGTERM');
-});
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
