@@ -14,7 +14,7 @@ process.env.PORT = process.env.PORT || '5000';
 process.env.HOST = '0.0.0.0';
 
 // Start the server process
-const server = spawn('node', ['server/index.js'], {
+const server = spawn('tsx', ['server/index.ts'], {
   stdio: 'inherit',
   env: process.env,
   cwd: process.cwd()
@@ -29,14 +29,15 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
-process.on('SIGINT', () => {
+// Handle process termination
+const cleanup = () => {
   console.log('Shutting down...');
-  server.kill();
+  if (server && !server.killed) {
+    server.kill('SIGKILL');
+  }
   process.exit(0);
-});
+};
 
-process.on('SIGTERM', () => {
-  console.log('Shutting down...');
-  server.kill();
-  process.exit(0);
-});
+process.on('SIGINT', cleanup);
+process.on('SIGTERM', cleanup);
+process.on('exit', cleanup);
