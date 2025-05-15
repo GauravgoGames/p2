@@ -111,6 +111,4 @@ export default function AudiencePoll({ poll }: PollProps) {
       </div>
     </div>
   );
-};
-
-export default AudiencePoll;
+}
