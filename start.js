@@ -1,21 +1,21 @@
 
 // Server startup script
+import dotenv from 'dotenv';
 import { spawn } from 'child_process';
-import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
 console.log('Starting ProAce Predictions...');
 
 // Load environment variables from .env file
-config();
+dotenv.config();
 
 // Set the PORT environment variable if not already set
 if (!process.env.PORT) {
-  process.env.PORT = '5000';
+  process.env.PORT = '3000';
 }
 
-const server = spawn('node', ['dist/server/index.js'], {
+const server = spawn('node', ['dist/index.js'], {
   stdio: 'inherit',
   env: { ...process.env, NODE_ENV: 'production' }
 });
