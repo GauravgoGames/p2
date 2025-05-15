@@ -93,10 +93,17 @@ const HomePage = () => {
     ));
   };
 
-  const { isLoading: allPollsLoading } = useQuery(['activePolls', 'completedPolls'], () => Promise.all([
-    fetch('/api/polls/active').then(res => res.json()),
-    fetch('/api/polls/completed').then(res => res.json())
-  ]), {
+  const { isLoading: allPollsLoading } = useQuery({
+    queryKey: ['polls', 'all'],
+    queryFn: async () => {
+      const [activeRes, completedRes] = await Promise.all([
+        fetch('/api/polls/active'),
+        fetch('/api/polls/completed')
+      ]);
+      const active = await activeRes.json();
+      const completed = await completedRes.json();
+      return { active, completed };
+    },
     refetchOnWindowFocus: false
   });
 
