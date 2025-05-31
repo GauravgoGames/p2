@@ -36,10 +36,13 @@ const AuthPage = () => {
     password: z.string().min(1, "Password is required"),
   });
   
-  // Registration form schema - extend the insertUserSchema
-  const registerSchema = insertUserSchema.extend({
+  // Registration form schema - create custom schema for registration
+  const registerSchema = z.object({
+    username: z.string().min(3, "Username must be at least 3 characters"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
+    displayName: z.string().optional(),
+    email: z.union([z.string().email(), z.literal('')]).optional(),
   }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],

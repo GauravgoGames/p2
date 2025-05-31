@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera } from 'lucide-react';
+import { Camera, Upload, X } from 'lucide-react';
 
 const profileBasicSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
@@ -178,9 +178,44 @@ export default function ProfileUpdatePage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'Error',
+          description: 'Image must be smaller than 5MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Error',
+          description: 'Please select a valid image file',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       setImageFile(file);
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
+      
+      toast({
+        title: 'Image selected',
+        description: 'Click "Update Profile" to save your new profile picture',
+      });
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    // Reset the file input
+    const fileInput = document.getElementById('profile-image') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
     }
   };
 
@@ -221,22 +256,47 @@ export default function ProfileUpdatePage() {
               <Form {...basicForm}>
                 <form onSubmit={basicForm.handleSubmit(onBasicSubmit)} className="space-y-6">
                   <div className="flex justify-center mb-6">
-                    <div className="relative">
-                      <Avatar className="h-32 w-32">
+                    <div className="relative group">
+                      <Avatar className="h-32 w-32 border-4 border-white shadow-lg">
                         <AvatarImage 
                           src={imagePreview || user.profileImage || ''} 
                           alt={user.displayName || user.username} 
                         />
-                        <AvatarFallback>
+                        <AvatarFallback className="text-2xl">
                           {user.displayName?.[0] || user.username[0]}
                         </AvatarFallback>
                       </Avatar>
+                      
+                      {/* Upload overlay */}
+                      <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                        <label 
+                          htmlFor="profile-image" 
+                          className="cursor-pointer text-white text-center"
+                        >
+                          <Upload className="h-6 w-6 mx-auto mb-1" />
+                          <span className="text-xs">Change Photo</span>
+                        </label>
+                      </div>
+                      
+                      {/* Camera icon button */}
                       <label 
                         htmlFor="profile-image" 
-                        className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full cursor-pointer hover:bg-primary/90"
+                        className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full cursor-pointer hover:bg-primary/90 shadow-lg border-2 border-white"
                       >
                         <Camera className="h-5 w-5" />
                       </label>
+                      
+                      {/* Remove image button */}
+                      {(imagePreview || imageFile) && (
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg border-2 border-white"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                      
                       <input
                         id="profile-image"
                         type="file"
@@ -245,6 +305,16 @@ export default function ProfileUpdatePage() {
                         onChange={handleImageChange}
                       />
                     </div>
+                  </div>
+
+                  {/* Image upload instructions */}
+                  <div className="text-center mb-4">
+                    <p className="text-sm text-neutral-600">
+                      Click the camera icon or hover over your photo to change your profile picture
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Supported formats: JPG, PNG, GIF (max 5MB)
+                    </p>
                   </div>
 
                   <FormField

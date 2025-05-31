@@ -44,14 +44,16 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Trash2, Upload } from 'lucide-react';
-import { Team, insertTeamSchema } from '@shared/schema';
+import { Team, Tournament, insertTeamSchema } from '@shared/schema';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Team form schema
 const teamSchema = z.object({
   name: z.string().min(1, "Team name is required"),
   logoUrl: z.string().optional(),
   isCustom: z.boolean().default(true),
+  tournamentIds: z.array(z.number()).optional(),
 });
 
 type TeamFormData = z.infer<typeof teamSchema>;
@@ -71,6 +73,16 @@ const ManageTeams = () => {
     queryFn: async () => {
       const res = await fetch('/api/teams');
       if (!res.ok) throw new Error('Failed to fetch teams');
+      return res.json();
+    }
+  });
+
+  // Fetch all tournaments
+  const { data: tournaments } = useQuery<Tournament[]>({
+    queryKey: ['/api/tournaments'],
+    queryFn: async () => {
+      const res = await fetch('/api/tournaments');
+      if (!res.ok) throw new Error('Failed to fetch tournaments');
       return res.json();
     }
   });
@@ -169,7 +181,18 @@ const ManageTeams = () => {
       
       // Then create the team
       const res = await apiRequest('POST', '/api/teams', data);
-      return res.json();
+      const teamData = await res.json();
+      
+      // Associate team with selected tournaments
+      if (data.tournamentIds && data.tournamentIds.length > 0) {
+        for (const tournamentId of data.tournamentIds) {
+          await apiRequest('POST', `/api/tournaments/${tournamentId}/teams`, {
+            teamId: teamData.id
+          });
+        }
+      }
+      
+      return teamData;
     },
     onSuccess: () => {
       toast({
@@ -356,6 +379,43 @@ const ManageTeams = () => {
                       Recommended size: 512x512px. Max 5MB.
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Tournament Selection */}
+              <div className="space-y-3">
+                <FormLabel>Associated Tournaments</FormLabel>
+                <FormDescription>
+                  Select which tournaments this team will participate in
+                </FormDescription>
+                <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto border rounded-md p-3">
+                  {tournaments?.map((tournament) => (
+                    <div key={tournament.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`tournament-${tournament.id}`}
+                        checked={createTeamForm.watch('tournamentIds')?.includes(tournament.id) || false}
+                        onCheckedChange={(checked) => {
+                          const currentIds = createTeamForm.getValues('tournamentIds') || [];
+                          if (checked) {
+                            createTeamForm.setValue('tournamentIds', [...currentIds, tournament.id]);
+                          } else {
+                            createTeamForm.setValue('tournamentIds', currentIds.filter(id => id !== tournament.id));
+                          }
+                        }}
+                      />
+                      <label 
+                        htmlFor={`tournament-${tournament.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {tournament.name}
+                      </label>
+                    </div>
+                  ))}
+                  {!tournaments?.length && (
+                    <p className="text-sm text-neutral-500 text-center py-2">
+                      No tournaments available. Create tournaments first.
+                    </p>
+                  )}
                 </div>
               </div>
               

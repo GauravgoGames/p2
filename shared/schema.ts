@@ -28,10 +28,30 @@ export const teams = pgTable("teams", {
   isCustom: boolean("is_custom").default(false).notNull(),
 });
 
+// Tournaments table
+export const tournaments = pgTable("tournaments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tournament teams junction table (many-to-many relationship)
+export const tournamentTeams = pgTable("tournament_teams", {
+  id: serial("id").primaryKey(),
+  tournamentId: integer("tournament_id").notNull(),
+  teamId: integer("team_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Matches table
 export const matches = pgTable("matches", {
   id: serial("id").primaryKey(),
-  tournamentName: text("tournament_name").notNull(),
+  tournamentId: integer("tournament_id"),
+  tournamentName: text("tournament_name").notNull(), // Keep for backward compatibility
   team1Id: integer("team1_id").notNull(),
   team2Id: integer("team2_id").notNull(),
   location: text("location").notNull(),
@@ -97,6 +117,24 @@ export const insertTeamSchema = createInsertSchema(teams)
     isCustom: z.boolean().default(true)
   });
 
+export const insertTournamentSchema = createInsertSchema(tournaments)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    imageUrl: z.string().optional(),
+    description: z.string().optional().or(z.literal('')),
+    startDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
+    endDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
+  });
+
+export const insertTournamentTeamSchema = createInsertSchema(tournamentTeams)
+  .omit({
+    id: true,
+    createdAt: true,
+  });
+
 export const insertMatchSchema = createInsertSchema(matches)
   .omit({
     tossWinnerId: true,
@@ -112,6 +150,8 @@ export const insertMatchSchema = createInsertSchema(matches)
     // Ensure team1Id and team2Id are numbers
     team1Id: z.number(),
     team2Id: z.number(),
+    // Make tournamentId optional for backward compatibility
+    tournamentId: z.number().optional(),
   });
 
 export const updateMatchResultSchema = createInsertSchema(matches).pick({
@@ -140,6 +180,12 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Team = typeof teams.$inferSelect;
 export type InsertTeam = z.infer<typeof insertTeamSchema>;
+
+export type Tournament = typeof tournaments.$inferSelect;
+export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+
+export type TournamentTeam = typeof tournamentTeams.$inferSelect;
+export type InsertTournamentTeam = z.infer<typeof insertTournamentTeamSchema>;
 
 export type Match = typeof matches.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;

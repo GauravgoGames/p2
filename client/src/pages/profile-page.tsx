@@ -75,6 +75,14 @@ export default function ProfilePage() {
     );
   }
 
+  // Determine if viewing own profile or another user's profile
+  const isOwnProfile = currentUser && currentUser.username === username;
+  
+  // Filter predictions based on profile ownership
+  const filteredPredictions = isOwnProfile 
+    ? predictions 
+    : predictions?.filter((p: any) => p.match.status !== 'upcoming') || [];
+
   // Calculate statistics
   const totalPredictions = predictions?.length * 2 || 0;
   const correctPredictions = predictions?.reduce((acc: number, p: any) => {
@@ -157,10 +165,17 @@ export default function ProfilePage() {
 
           {/* Predictions Section */}
           <div>
-            <h2 className="text-2xl font-bold mb-4">Predictions</h2>
-            {predictions.length > 0 ? (
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Predictions</h2>
+              {!isOwnProfile && (
+                <div className="text-sm text-gray-500 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
+                  Only completed & live matches shown
+                </div>
+              )}
+            </div>
+            {filteredPredictions.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {predictions.map((prediction: any) => (
+                {filteredPredictions.map((prediction: any) => (
                   <Card key={prediction.id} className="overflow-hidden">
                     <CardContent className="p-0">
                       <MatchCard match={prediction.match} userPrediction={prediction} />
@@ -174,8 +189,15 @@ export default function ProfilePage() {
                   <div className="mb-3">
                     <Trophy className="h-12 w-12 mx-auto text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-medium mb-2">No Predictions Yet</h3>
-                  <p>This user hasn't made any predictions yet.</p>
+                  <h3 className="text-lg font-medium mb-2">
+                    {isOwnProfile ? "No Predictions Yet" : "No Completed Predictions Yet"}
+                  </h3>
+                  <p>
+                    {isOwnProfile 
+                      ? "This user hasn't made any predictions yet." 
+                      : "This user hasn't made any predictions on completed or live matches yet."
+                    }
+                  </p>
                 </div>
               </Card>
             )}

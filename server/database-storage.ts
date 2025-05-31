@@ -8,11 +8,14 @@ import {
   predictions, 
   pointsLedger,
   siteSettings,
+  tournaments,
+  tournamentTeams,
   User, 
   InsertUser, 
   Team, 
   InsertTeam, 
-  Match, 
+  Match,
+  Tournament, 
   InsertMatch, 
   UpdateMatchResult, 
   Prediction, 
@@ -186,6 +189,55 @@ export class DatabaseStorage implements IStorage {
   
   async getAllTeams(): Promise<Team[]> {
     return await db.select().from(teams);
+  }
+
+  // Tournament-Team relationship methods
+  async addTeamToTournament(tournamentId: number, teamId: number): Promise<void> {
+    await db.insert(tournamentTeams).values({
+      tournamentId,
+      teamId
+    });
+  }
+
+  async removeTeamFromTournament(tournamentId: number, teamId: number): Promise<void> {
+    await db.delete(tournamentTeams)
+      .where(and(
+        eq(tournamentTeams.tournamentId, tournamentId),
+        eq(tournamentTeams.teamId, teamId)
+      ));
+  }
+
+  async getTeamsByTournament(tournamentId: number): Promise<Team[]> {
+    const result = await db
+      .select({
+        id: teams.id,
+        name: teams.name,
+        logoUrl: teams.logoUrl,
+        isCustom: teams.isCustom
+      })
+      .from(teams)
+      .innerJoin(tournamentTeams, eq(teams.id, tournamentTeams.teamId))
+      .where(eq(tournamentTeams.tournamentId, tournamentId));
+    
+    return result;
+  }
+
+  async getTournamentsByTeam(teamId: number): Promise<Tournament[]> {
+    const result = await db
+      .select({
+        id: tournaments.id,
+        name: tournaments.name,
+        description: tournaments.description,
+        imageUrl: tournaments.imageUrl,
+        startDate: tournaments.startDate,
+        endDate: tournaments.endDate,
+        createdAt: tournaments.createdAt
+      })
+      .from(tournaments)
+      .innerJoin(tournamentTeams, eq(tournaments.id, tournamentTeams.tournamentId))
+      .where(eq(tournamentTeams.teamId, teamId));
+    
+    return result;
   }
   
   // Match methods
@@ -558,4 +610,79 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to update setting: ${key}`);
     }
   }
+
+  // Tournament methods
+  async createTournament(tournament: any): Promise<Tournament> {
+    const [newTournament] = await db.insert(tournaments)
+      .values(tournament)
+      .returning();
+    return newTournament;
+  }
+
+  async getTournamentById(id: number): Promise<Tournament | undefined> {
+    const [tournament] = await db.select()
+      .from(tournaments)
+      .where(eq(tournaments.id, id));
+    return tournament || undefined;
+  }
+
+  async getAllTournaments(): Promise<Tournament[]> {
+    return await db.select().from(tournaments).orderBy(asc(tournaments.createdAt));
+  }
+
+  async updateTournament(id: number, tournamentData: Partial<Tournament>): Promise<Tournament> {
+    const [updated] = await db.update(tournaments)
+      .set({ ...tournamentData, updatedAt: new Date() })
+      .where(eq(tournaments.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteTournament(id: number): Promise<void> {
+    await db.delete(tournaments).where(eq(tournaments.id, id));
+  }
+
+  async getMatchesByTournament(tournamentId: number): Promise<MatchWithTeams[]> {
+    const matchesList = await db.select()
+      .from(matches)
+      .where(eq(matches.tournamentId, tournamentId))
+      .orderBy(asc(matches.matchDate));
+    
+    const matchesWithTeams = await Promise.all(
+      matchesList.map(match => this.populateMatchWithTeams(match))
+    );
+    
+    return matchesWithTeams;
+  }
+
+  // Tournament-Team relationship methods
+  async addTeamToTournament(tournamentId: number, teamId: number): Promise<void> {
+    await db.insert(tournamentTeams)
+      .values({ tournamentId, teamId })
+      .onConflictDoNothing();
+  }
+
+  async removeTeamFromTournament(tournamentId: number, teamId: number): Promise<void> {
+    await db.delete(tournamentTeams)
+      .where(and(
+        eq(tournamentTeams.tournamentId, tournamentId),
+        eq(tournamentTeams.teamId, teamId)
+      ));
+  }
+
+  async getTeamsByTournament(tournamentId: number): Promise<Team[]> {
+    const result = await db.select({
+      id: teams.id,
+      name: teams.name,
+      logoUrl: teams.logoUrl,
+      isCustom: teams.isCustom
+    })
+    .from(tournamentTeams)
+    .innerJoin(teams, eq(tournamentTeams.teamId, teams.id))
+    .where(eq(tournamentTeams.tournamentId, tournamentId));
+    
+    return result;
+  }
 }
+
+export const storage = new DatabaseStorage();

@@ -73,8 +73,7 @@ const createUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   displayName: z.string().optional(),
-  email: z.string().email("Invalid email format").optional(),
-  profileImage: z.string().url("Must be a valid URL").optional(),
+  email: z.union([z.string().email(), z.literal('')]).optional(),
   role: z.enum(['user', 'admin']).default('user'),
 });
 
@@ -114,7 +113,6 @@ const ManageUsers = () => {
       password: '',
       displayName: '',
       email: '',
-      profileImage: '',
       role: 'user',
     },
   });
@@ -531,20 +529,6 @@ const ManageUsers = () => {
                     <FormLabel>Email (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter email" type="email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={createUserForm.control}
-                name="profileImage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Profile Image URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://example.com/image.jpg" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

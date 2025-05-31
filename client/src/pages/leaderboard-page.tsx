@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Crown, Medal, Search, Trophy, Users, Award } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartLegendContent } from '@/components/ui/chart';
@@ -21,15 +22,51 @@ interface LeaderboardUser {
   totalMatches: number;
 }
 
+interface Tournament {
+  id: number;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+}
+
 const LeaderboardPage = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [timeframe, setTimeframe] = useState('weekly');
+  const [selectedTournament, setSelectedTournament] = useState<string>('overall');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const { data: tournaments } = useQuery<Tournament[]>({
+    queryKey: ['/api/tournaments'],
+    queryFn: async () => {
+      const res = await fetch('/api/tournaments');
+      if (!res.ok) throw new Error('Failed to fetch tournaments');
+      return res.json();
+    }
+  });
 
   const { data: leaderboard, isLoading } = useQuery<LeaderboardUser[]>({
-    queryKey: ['/api/leaderboard', timeframe],
+    queryKey: ['/api/leaderboard', timeframe, selectedTournament],
     queryFn: async () => {
-      const res = await fetch(`/api/leaderboard?timeframe=${timeframe}`);
+      const params = new URLSearchParams({ timeframe });
+      if (selectedTournament !== 'overall') {
+        params.append('tournamentId', selectedTournament);
+      }
+      const res = await fetch(`/api/leaderboard?${params}`);
       if (!res.ok) throw new Error('Failed to fetch leaderboard');
       return res.json();
     }
@@ -73,8 +110,8 @@ const LeaderboardPage = () => {
       <h1 className="text-3xl font-bold mb-6 font-heading">Leaderboard</h1>
 
       <div className="bg-white shadow-md rounded-lg p-4 mb-8">
-        <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
-          <div className="relative w-full md:w-1/3">
+        <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
+          <div className="relative w-full lg:w-1/4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" size={18} />
             <Input
               type="text"
@@ -85,13 +122,31 @@ const LeaderboardPage = () => {
             />
           </div>
 
-          <Tabs defaultValue={timeframe} value={timeframe} onValueChange={setTimeframe}>
-            <TabsList>
-              <TabsTrigger value="weekly">Weekly</TabsTrigger>
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              <TabsTrigger value="all-time">All Time</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="w-full sm:w-48">
+              <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Tournament" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="overall">Overall Leaderboard</SelectItem>
+                  {tournaments?.map((tournament) => (
+                    <SelectItem key={tournament.id} value={tournament.id.toString()}>
+                      {tournament.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Tabs defaultValue={timeframe} value={timeframe} onValueChange={setTimeframe}>
+              <TabsList>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="all-time">All Time</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -204,35 +259,73 @@ const LeaderboardPage = () => {
       </div>
 
       {/* Performance Chart */}
-      <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-bold mb-6">Performance Comparison</h2>
-        <ChartContainer
-          config={{
-            strikeRate: { 
-              color: '#FF9800',
-              label: 'Strike Rate',
-              colors: ['#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722']
-            }
-          }}
-          className="h-[400px]"
-        >
-          <BarChart data={filteredUsers().slice(0, 10).map((user, index) => ({
-            name: user.displayName || user.username,
-            strikeRate: Number(((user.correctPredictions/(user.totalMatches*2))*100).toFixed(1)),
-            fill: ['#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722'][index]
-          }))}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-            <YAxis label={{ value: 'Strike Rate (%)', angle: -90, position: 'insideLeft' }} />
-            <Tooltip content={<ChartTooltipContent />} />
-            <Legend content={<ChartLegendContent />} />
-            <Bar dataKey="strikeRate" fill="var(--color-strikeRate)">
-              {filteredUsers().slice(0, 10).map((_, index) => (
-                <Cell key={`cell-${index}`} fill={['#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722'][index]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+      <div className="bg-white shadow-md rounded-lg p-4 sm:p-6 mb-8">
+        <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">
+          Performance Comparison - Top {isMobile ? '10' : '20'} {selectedTournament !== 'overall' ? `(${tournaments?.find(t => t.id.toString() === selectedTournament)?.name || 'Tournament'})` : 'Predictors'}
+        </h2>
+        <div className="w-full overflow-x-auto">
+          <div className="min-w-[600px] sm:min-w-0">
+            <ChartContainer
+              config={{
+                strikeRate: { 
+                  color: '#FF9800',
+                  label: 'Strike Rate'
+                }
+              }}
+              className="h-[400px] sm:h-[500px] w-full"
+            >
+              <BarChart 
+                data={filteredUsers().slice(0, isMobile ? 10 : 20).map((user, index) => {
+                  const colors = [
+                    '#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', 
+                    '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722',
+                    '#795548', '#607D8B', '#F44336', '#E91E63', '#9C27B0',
+                    '#673AB7', '#3F51B5', '#03A9F4', '#00BCD4', '#4CAF50'
+                  ];
+                  return {
+                    name: isMobile 
+                      ? ((user.displayName || user.username).length > 6 
+                          ? (user.displayName || user.username).substring(0, 6) + '...'
+                          : (user.displayName || user.username))
+                      : ((user.displayName || user.username).length > 8 
+                          ? (user.displayName || user.username).substring(0, 8) + '...'
+                          : (user.displayName || user.username)),
+                    strikeRate: user.totalMatches > 0 ? Number(((user.correctPredictions/(user.totalMatches*2))*100).toFixed(1)) : 0,
+                    fill: colors[index % colors.length]
+                  };
+                })}
+                margin={{ top: 20, right: 30, left: 20, bottom: 120 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={120}
+                  fontSize={isMobile ? 10 : 12}
+                  interval={0}
+                />
+                <YAxis 
+                  label={{ value: 'Strike Rate (%)', angle: -90, position: 'insideLeft' }}
+                  fontSize={isMobile ? 10 : 12}
+                />
+                <Tooltip content={<ChartTooltipContent />} />
+                <Legend content={<ChartLegendContent />} />
+                <Bar dataKey="strikeRate" fill="var(--color-strikeRate)">
+                  {filteredUsers().slice(0, isMobile ? 10 : 20).map((_, index) => {
+                    const colors = [
+                      '#FF9800', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', 
+                      '#2196F3', '#009688', '#4CAF50', '#FFC107', '#FF5722',
+                      '#795548', '#607D8B', '#F44336', '#E91E63', '#9C27B0',
+                      '#673AB7', '#3F51B5', '#03A9F4', '#00BCD4', '#4CAF50'
+                    ];
+                    return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </div>
+        </div>
       </div>
     </div>
   );

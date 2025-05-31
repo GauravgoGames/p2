@@ -25,6 +25,12 @@ const Footer = () => {
             <Link href="/help" className="text-neutral-300 hover:text-white text-sm">
               Help
             </Link>
+            <a href="https://www.pro-ace-predictions.co.uk/contact/" target="_blank" rel="noopener noreferrer" className="text-neutral-300 hover:text-white text-sm">
+              Contact Us
+            </a>
+            <a href="https://www.pro-ace-predictions.co.uk/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-neutral-300 hover:text-white text-sm">
+              Privacy Policy
+            </a>
           </div>
 
           <div className="flex space-x-4">

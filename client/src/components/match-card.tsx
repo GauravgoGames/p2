@@ -10,6 +10,7 @@ import { MapPin, CheckCircle, XCircle, Trophy, Clock, Activity } from 'lucide-re
 import { format, differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import VoteBand from './vote-band';
 
 interface MatchCardProps {
   match: Match & {
@@ -313,15 +314,78 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           </div>
         </div>
 
-        {match.status === 'completed' ? (
+        {/* Vote Bands - Show prediction statistics */}
+        {match.status !== 'completed' && match.status !== 'void' && match.status !== 'tie' && (
+          <div className="space-y-2">
+            <VoteBand 
+              matchId={match.id} 
+              team1Name={match.team1.name} 
+              team2Name={match.team2.name} 
+              type="toss"
+            />
+            <VoteBand 
+              matchId={match.id} 
+              team1Name={match.team1.name} 
+              team2Name={match.team2.name} 
+              type="match"
+            />
+          </div>
+        )}
+
+        {match.status === 'completed' || match.status === 'tie' || match.status === 'void' ? (
           <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
             {/* Match Result Summary */}
-            <div className="text-center mb-4">
-              <div className="text-sm text-neutral-500 mb-1">Match Result</div>
-              <div className="font-bold text-lg">{match.resultSummary}</div>
-            </div>
+            {match.status !== 'void' && (
+              <div className="text-center mb-4">
+                <div className="text-sm text-neutral-500 mb-1">Match Result</div>
+                <div className="font-bold text-lg">{match.resultSummary || 'Match ' + match.status}</div>
+              </div>
+            )}
 
-            {userPrediction && (
+            {/* VOID Match - Show VOID message */}
+            {match.status === 'void' && (
+              <div className="text-center py-8">
+                <div className="text-2xl font-bold text-red-600 mb-2">VOID</div>
+                <div className="text-sm text-neutral-500">This match has been voided</div>
+              </div>
+            )}
+
+            {/* TIE Match - Show only toss results */}
+            {match.status === 'tie' && userPrediction && (
+              <div className="space-y-4">
+                {/* Toss Result only for TIE */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-1">
+                    <div className="text-neutral-500 font-medium text-center mb-1">Toss Winner</div>
+                    {match.tossWinnerId && (
+                      <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
+                        <Trophy className="h-4 w-4 text-yellow-500" />
+                        <span className="font-medium">
+                          {match.tossWinnerId === match.team1Id ? match.team1.name : match.team2.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-1">
+                    <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
+                    <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
+                      {userPrediction.predictedTossWinnerId === match.tossWinnerId ? (
+                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                      )}
+                      <span className="font-medium">
+                        {userPrediction.predictedTossWinnerId === match.team1Id ? match.team1.name : match.team2.name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* COMPLETED Match - Show both toss and match results */}
+            {match.status === 'completed' && userPrediction && (
               <div className="space-y-4">
                 {/* Toss Result */}
                 <div className="grid grid-cols-2 gap-4">

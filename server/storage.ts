@@ -3,6 +3,8 @@ import {
   InsertUser, 
   Team, 
   InsertTeam, 
+  Tournament,
+  InsertTournament,
   Match, 
   InsertMatch, 
   UpdateMatchResult, 
@@ -54,6 +56,19 @@ export interface IStorage {
   getTeamById(id: number): Promise<Team | undefined>;
   getAllTeams(): Promise<Team[]>;
   
+  // Tournament methods
+  createTournament(tournament: InsertTournament): Promise<Tournament>;
+  getTournamentById(id: number): Promise<Tournament | undefined>;
+  getAllTournaments(): Promise<Tournament[]>;
+  updateTournament(id: number, tournamentData: Partial<Tournament>): Promise<Tournament>;
+  deleteTournament(id: number): Promise<void>;
+  getMatchesByTournament(tournamentId: number): Promise<MatchWithTeams[]>;
+  
+  // Tournament-Team relationship methods
+  addTeamToTournament(tournamentId: number, teamId: number): Promise<void>;
+  removeTeamFromTournament(tournamentId: number, teamId: number): Promise<void>;
+  getTeamsByTournament(tournamentId: number): Promise<Team[]>;
+  
   // Site settings methods
   getSetting(key: string): Promise<string | null>;
   updateSetting(key: string, value: string): Promise<void>;
@@ -70,11 +85,13 @@ export interface IStorage {
   createPrediction(prediction: InsertPrediction): Promise<Prediction>;
   getUserPredictions(userId: number): Promise<PredictionWithDetails[]>;
   getUserPredictionForMatch(userId: number, matchId: number): Promise<Prediction | undefined>;
+  getPredictionsForMatch(matchId: number): Promise<Prediction[]>;
   updatePrediction(id: number, predictionData: Partial<InsertPrediction>): Promise<Prediction>;
   getAllPredictions(): Promise<Prediction[]>;
   
   // Leaderboard methods
   getLeaderboard(timeframe: string): Promise<LeaderboardUser[]>;
+  getTournamentLeaderboard(tournamentId: number, timeframe: string): Promise<LeaderboardUser[]>;
   
   // Point calculation
   calculatePoints(matchId: number): Promise<void>;
@@ -85,15 +102,18 @@ export class MemStorage implements IStorage {
   // Making predictions map public to allow access from routes
   users: Map<number, User>;
   teams: Map<number, Team>;
+  tournaments: Map<number, Tournament>;
   matches: Map<number, Match>;
   predictions: Map<number, Prediction>;
   private pointsLedger: Map<number, PointsLedgerEntry>;
   private settings: Map<string, string>;
+  private tournamentTeams: Map<string, boolean>; // key: "tournamentId-teamId"
   
   sessionStore: session.SessionStore;
   
   private userCounter: number;
   private teamCounter: number;
+  private tournamentCounter: number;
   private matchCounter: number;
   private predictionCounter: number;
   private pointsLedgerCounter: number;
@@ -107,13 +127,16 @@ export class MemStorage implements IStorage {
     
     this.users = new Map();
     this.teams = new Map();
+    this.tournaments = new Map();
     this.matches = new Map();
     this.predictions = new Map();
     this.pointsLedger = new Map();
     this.settings = new Map();
+    this.tournamentTeams = new Map();
     
     this.userCounter = 1;
     this.teamCounter = 1;
+    this.tournamentCounter = 1;
     this.matchCounter = 1;
     this.predictionCounter = 1;
     this.pointsLedgerCounter = 1;
@@ -239,7 +262,17 @@ export class MemStorage implements IStorage {
   // Match methods
   async createMatch(matchData: InsertMatch): Promise<MatchWithTeams> {
     const id = this.matchCounter++;
-    const match: Match = { ...matchData, id };
+    const match: Match = { 
+      ...matchData, 
+      id,
+      tournamentId: matchData.tournamentId || null,
+      tossWinnerId: null,
+      matchWinnerId: null,
+      team1Score: null,
+      team2Score: null,
+      resultSummary: null,
+      status: matchData.status || "upcoming"
+    };
     this.matches.set(id, match);
     
     return this.populateMatchWithTeams(match);
@@ -378,6 +411,12 @@ export class MemStorage implements IStorage {
       p => p.userId === userId && p.matchId === matchId
     );
   }
+
+  async getPredictionsForMatch(matchId: number): Promise<Prediction[]> {
+    return Array.from(this.predictions.values()).filter(
+      p => p.matchId === matchId
+    );
+  }
   
   async updatePrediction(id: number, predictionData: Partial<InsertPrediction>): Promise<Prediction> {
     const prediction = this.predictions.get(id);
@@ -426,6 +465,61 @@ export class MemStorage implements IStorage {
     return leaderboardEntries.sort((a, b) => b.points - a.points);
   }
   
+  async getTournamentLeaderboard(tournamentId: number, timeframe: string): Promise<LeaderboardUser[]> {
+    // Get all users
+    const users = Array.from(this.users.values());
+    
+    // Get matches for the specific tournament
+    const tournamentMatches = Array.from(this.matches.values()).filter(
+      match => match.tournamentId === tournamentId
+    );
+    
+    // Create leaderboard entries
+    const leaderboardEntries: LeaderboardUser[] = await Promise.all(
+      users.map(async user => {
+        const userPredictions = Array.from(this.predictions.values())
+          .filter(pred => pred.userId === user.id && 
+                  tournamentMatches.some(match => match.id === pred.matchId));
+        
+        // Filter predictions based on timeframe
+        const filteredPredictions = this.filterPredictionsByTimeframe(userPredictions, timeframe);
+        
+        const correctPredictions = filteredPredictions.reduce((sum, pred) => sum + (pred.pointsEarned || 0), 0);
+        
+        // Calculate tournament-specific points
+        let tournamentPoints = 0;
+        for (const prediction of filteredPredictions) {
+          const match = this.matches.get(prediction.matchId);
+          if (match && match.status === 'completed') {
+            // Check if toss prediction was correct
+            if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
+              tournamentPoints++;
+            }
+            // Check if match winner prediction was correct
+            if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
+              tournamentPoints++;
+            }
+          }
+        }
+        
+        return {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          profileImage: user.profileImage,
+          points: tournamentPoints,
+          correctPredictions,
+          totalMatches: filteredPredictions.length
+        };
+      })
+    );
+    
+    // Filter out users with no tournament activity and sort by points
+    return leaderboardEntries
+      .filter(entry => entry.totalMatches > 0)
+      .sort((a, b) => b.points - a.points);
+  }
+
   // Points calculation
   async calculatePoints(matchId: number): Promise<void> {
     const match = await this.getMatchById(matchId);
@@ -491,6 +585,58 @@ export class MemStorage implements IStorage {
     
     this.pointsLedger.set(id, ledgerEntry);
   }
+
+  // Tournament methods
+  async createTournament(tournament: InsertTournament): Promise<Tournament> {
+    const id = this.tournamentCounter++;
+    const newTournament: Tournament = {
+      id,
+      name: tournament.name,
+      description: tournament.description || null,
+      imageUrl: tournament.imageUrl || null,
+      startDate: tournament.startDate || null,
+      endDate: tournament.endDate || null,
+      createdAt: new Date()
+    };
+    
+    this.tournaments.set(id, newTournament);
+    return newTournament;
+  }
+
+  async getTournamentById(id: number): Promise<Tournament | undefined> {
+    return this.tournaments.get(id);
+  }
+
+  async getAllTournaments(): Promise<Tournament[]> {
+    return Array.from(this.tournaments.values());
+  }
+
+  async updateTournament(id: number, tournamentData: Partial<Tournament>): Promise<Tournament> {
+    const tournament = this.tournaments.get(id);
+    if (!tournament) {
+      throw new Error("Tournament not found");
+    }
+    
+    const updatedTournament = { ...tournament, ...tournamentData };
+    this.tournaments.set(id, updatedTournament);
+    return updatedTournament;
+  }
+
+  async deleteTournament(id: number): Promise<void> {
+    this.tournaments.delete(id);
+  }
+
+  async getMatchesByTournament(tournamentId: number): Promise<MatchWithTeams[]> {
+    const matches = Array.from(this.matches.values()).filter(
+      match => match.tournamentId === tournamentId
+    );
+    
+    const matchesWithTeams = await Promise.all(
+      matches.map(match => this.populateMatchWithTeams(match))
+    );
+    
+    return matchesWithTeams;
+  }
   
   // Helper methods
   private async populateMatchWithTeams(match: Match): Promise<MatchWithTeams> {
@@ -521,6 +667,36 @@ export class MemStorage implements IStorage {
     };
   }
   
+  // Tournament-Team relationship methods
+  async addTeamToTournament(tournamentId: number, teamId: number): Promise<void> {
+    const key = `${tournamentId}-${teamId}`;
+    this.tournamentTeams.set(key, true);
+  }
+
+  async removeTeamFromTournament(tournamentId: number, teamId: number): Promise<void> {
+    const key = `${tournamentId}-${teamId}`;
+    this.tournamentTeams.delete(key);
+  }
+
+  async getTeamsByTournament(tournamentId: number): Promise<Team[]> {
+    const teams: Team[] = [];
+    
+    for (const [key, _] of this.tournamentTeams.entries()) {
+      const [tourIdStr, teamIdStr] = key.split('-');
+      const tourId = parseInt(tourIdStr);
+      const teamId = parseInt(teamIdStr);
+      
+      if (tourId === tournamentId) {
+        const team = await this.getTeamById(teamId);
+        if (team) {
+          teams.push(team);
+        }
+      }
+    }
+    
+    return teams;
+  }
+
   // Site settings methods
   async getSetting(key: string): Promise<string | null> {
     return this.settings.get(key) || null;
@@ -558,5 +734,5 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Use in-memory storage for now to fix immediate issues
+// Use in-memory storage with tournament-team relationships working
 export const storage = new MemStorage();

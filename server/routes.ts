@@ -9,9 +9,10 @@ import {
   insertMatchSchema, 
   updateMatchResultSchema, 
   insertTeamSchema, 
-  insertPredictionSchema 
+  insertPredictionSchema,
+  insertTournamentSchema 
 } from "@shared/schema";
-import { uploadTeamLogo, uploadUserProfile, uploadSiteLogo, getPublicUrl } from "./upload";
+import { uploadTeamLogo, uploadUserProfile, uploadSiteLogo, uploadTournamentImage, getPublicUrl } from "./upload";
 
 // Helper: Admin authorization middleware
 const isAdmin = (req: Request, res: Response, next: NextFunction) => {
@@ -40,7 +41,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'public/uploads',
     'public/uploads/teams',
     'public/uploads/profiles',
-    'public/uploads/site'
+    'public/uploads/site',
+    'public/uploads/tournaments'
   ];
   
   for (const dir of uploadDirs) {
@@ -262,6 +264,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching all predictions" });
     }
   });
+
+  // Get prediction statistics for a specific match (vote bands)
+  app.get("/api/matches/:id/prediction-stats", async (req, res) => {
+    try {
+      const matchId = parseInt(req.params.id, 10);
+      if (isNaN(matchId)) {
+        return res.status(400).json({ message: "Invalid match ID" });
+      }
+
+      const match = await storage.getMatchById(matchId);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      const predictions = await storage.getPredictionsForMatch(matchId);
+      
+      // Count toss predictions for each team
+      const tossTeam1Predictions = predictions.filter((p: any) => p.predictedTossWinnerId === match.team1Id).length;
+      const tossTeam2Predictions = predictions.filter((p: any) => p.predictedTossWinnerId === match.team2Id).length;
+      const totalTossPredictions = tossTeam1Predictions + tossTeam2Predictions;
+
+      // Count match predictions for each team
+      const matchTeam1Predictions = predictions.filter((p: any) => p.predictedMatchWinnerId === match.team1Id).length;
+      const matchTeam2Predictions = predictions.filter((p: any) => p.predictedMatchWinnerId === match.team2Id).length;
+      const totalMatchPredictions = matchTeam1Predictions + matchTeam2Predictions;
+
+      // Calculate toss percentages
+      const tossTeam1Percentage = totalTossPredictions > 0 ? Math.round((tossTeam1Predictions / totalTossPredictions) * 100) : 0;
+      const tossTeam2Percentage = totalTossPredictions > 0 ? Math.round((tossTeam2Predictions / totalTossPredictions) * 100) : 0;
+
+      // Calculate match percentages
+      const matchTeam1Percentage = totalMatchPredictions > 0 ? Math.round((matchTeam1Predictions / totalMatchPredictions) * 100) : 0;
+      const matchTeam2Percentage = totalMatchPredictions > 0 ? Math.round((matchTeam2Predictions / totalMatchPredictions) * 100) : 0;
+
+      const totalPredictions = Math.max(totalTossPredictions, totalMatchPredictions);
+
+      res.json({
+        matchId,
+        totalPredictions,
+        toss: {
+          team1: {
+            id: match.team1Id,
+            name: match.team1?.name || 'Team 1',
+            predictions: tossTeam1Predictions,
+            percentage: tossTeam1Percentage
+          },
+          team2: {
+            id: match.team2Id,
+            name: match.team2?.name || 'Team 2',
+            predictions: tossTeam2Predictions,
+            percentage: tossTeam2Percentage
+          }
+        },
+        match: {
+          team1: {
+            id: match.team1Id,
+            name: match.team1?.name || 'Team 1',
+            predictions: matchTeam1Predictions,
+            percentage: matchTeam1Percentage
+          },
+          team2: {
+            id: match.team2Id,
+            name: match.team2?.name || 'Team 2',
+            predictions: matchTeam2Predictions,
+            percentage: matchTeam2Percentage
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching prediction stats:", error);
+      res.status(500).json({ message: "Error fetching prediction statistics" });
+    }
+  });
   
   app.post("/api/predictions", isAuthenticated, async (req, res) => {
     try {
@@ -301,8 +376,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/leaderboard", async (req, res) => {
     try {
       const timeframe = req.query.timeframe as string || 'all-time';
-      const leaderboard = await storage.getLeaderboard(timeframe);
-      res.json(leaderboard);
+      const tournamentId = req.query.tournamentId ? parseInt(req.query.tournamentId as string, 10) : undefined;
+      
+      if (tournamentId) {
+        // Get tournament-specific leaderboard
+        const leaderboard = await storage.getTournamentLeaderboard(tournamentId, timeframe);
+        res.json(leaderboard);
+      } else {
+        // Get overall leaderboard
+        const leaderboard = await storage.getLeaderboard(timeframe);
+        res.json(leaderboard);
+      }
     } catch (error) {
       res.status(500).json({ message: "Error fetching leaderboard" });
     }
@@ -508,6 +592,308 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading site logo:", error);
       res.status(500).json({ message: "Error uploading site logo", error: (error as Error).message });
+    }
+  });
+
+  // General upload route for images
+  app.post("/api/upload", isAdmin, uploadTournamentImage.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const imageUrl = getPublicUrl(req.file.path);
+      console.log("Image uploaded successfully:", imageUrl);
+      console.log("File path:", req.file.path);
+      
+      res.json({ url: imageUrl });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({ message: "Error uploading image", error: (error as Error).message });
+    }
+  });
+
+  // Tournament Routes
+  
+  // Get all tournaments
+  app.get("/api/tournaments", async (req, res) => {
+    try {
+      const tournaments = await storage.getAllTournaments();
+      // Add match count for each tournament
+      const tournamentsWithCounts = await Promise.all(
+        tournaments.map(async (tournament) => {
+          const matches = await storage.getMatchesByTournament(tournament.id);
+          return {
+            ...tournament,
+            matchCount: matches.length
+          };
+        })
+      );
+      res.json(tournamentsWithCounts);
+    } catch (error) {
+      console.error("Error fetching tournaments:", error);
+      res.status(500).json({ message: "Error fetching tournaments" });
+    }
+  });
+
+  // Get tournament by ID
+  app.get("/api/tournaments/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const tournament = await storage.getTournamentById(id);
+      if (!tournament) {
+        return res.status(404).json({ message: "Tournament not found" });
+      }
+      res.json(tournament);
+    } catch (error) {
+      console.error("Error fetching tournament:", error);
+      res.status(500).json({ message: "Error fetching tournament" });
+    }
+  });
+
+  // Get matches by tournament
+  app.get("/api/tournaments/:id/matches", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const matches = await storage.getMatchesByTournament(tournamentId);
+      res.json(matches);
+    } catch (error) {
+      console.error("Error fetching tournament matches:", error);
+      res.status(500).json({ message: "Error fetching tournament matches" });
+    }
+  });
+
+  // Create tournament (admin only)
+  app.post("/api/tournaments", isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertTournamentSchema.parse(req.body);
+      const tournament = await storage.createTournament(validatedData);
+      res.status(201).json(tournament);
+    } catch (error) {
+      console.error("Error creating tournament:", error);
+      res.status(400).json({ message: "Invalid tournament data", error });
+    }
+  });
+
+  // Update tournament (admin only)
+  app.put("/api/tournaments/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const updatedTournament = await storage.updateTournament(id, req.body);
+      res.json(updatedTournament);
+    } catch (error) {
+      console.error("Error updating tournament:", error);
+      res.status(400).json({ message: "Invalid tournament data", error });
+    }
+  });
+
+  // Update tournament (admin only) - PATCH method
+  app.patch("/api/tournaments/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const updatedTournament = await storage.updateTournament(id, req.body);
+      res.json(updatedTournament);
+    } catch (error) {
+      console.error("Error updating tournament:", error);
+      res.status(400).json({ message: "Invalid tournament data", error });
+    }
+  });
+
+  // Delete tournament (admin only)
+  app.delete("/api/tournaments/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await storage.deleteTournament(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting tournament:", error);
+      res.status(500).json({ message: "Error deleting tournament" });
+    }
+  });
+
+  // Team-Tournament Association Routes
+  
+  // Get teams by tournament
+  app.get("/api/tournaments/:id/teams", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const teams = await storage.getTeamsByTournament(tournamentId);
+      res.json(teams);
+    } catch (error) {
+      console.error("Error fetching tournament teams:", error);
+      res.status(500).json({ message: "Error fetching tournament teams" });
+    }
+  });
+
+  // Add team to tournament (for team creation with tournament association)
+  app.post("/api/tournaments/:tournamentId/teams", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.tournamentId, 10);
+      const { teamId } = req.body;
+      
+      await storage.addTeamToTournament(tournamentId, teamId);
+      res.status(200).json({ message: "Team added to tournament successfully" });
+    } catch (error) {
+      console.error("Error adding team to tournament:", error);
+      res.status(500).json({ message: "Error adding team to tournament" });
+    }
+  });
+
+  // Add team to tournament (alternative route)
+  app.post("/api/tournaments/:tournamentId/teams/:teamId", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.tournamentId, 10);
+      const teamId = parseInt(req.params.teamId, 10);
+      
+      await storage.addTeamToTournament(tournamentId, teamId);
+      res.status(201).json({ message: "Team added to tournament successfully" });
+    } catch (error) {
+      console.error("Error adding team to tournament:", error);
+      res.status(500).json({ message: "Error adding team to tournament" });
+    }
+  });
+
+  // Remove team from tournament
+  app.delete("/api/tournaments/:tournamentId/teams/:teamId", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.tournamentId, 10);
+      const teamId = parseInt(req.params.teamId, 10);
+      
+      await storage.removeTeamFromTournament(tournamentId, teamId);
+      res.status(200).json({ message: "Team removed from tournament successfully" });
+    } catch (error) {
+      console.error("Error removing team from tournament:", error);
+      res.status(500).json({ message: "Error removing team from tournament" });
+    }
+  });
+
+  // Tournament Analysis Routes
+  
+  // Get tournament analysis data
+  app.get("/api/tournaments/:id/analysis", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      
+      // Get tournament leaderboard
+      const leaderboard = await storage.getTournamentLeaderboard(tournamentId, 'all-time');
+      
+      // Transform to analysis format
+      const analysisData = leaderboard.map((user, index) => {
+        const accuracy = user.totalMatches > 0 ? (user.correctPredictions / (user.totalMatches * 2)) * 100 : 0;
+        
+        return {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          profileImage: user.profileImage,
+          totalMatches: user.totalMatches,
+          correctTossPredictions: Math.floor(user.correctPredictions / 2),
+          correctMatchPredictions: Math.ceil(user.correctPredictions / 2),
+          totalPoints: user.points,
+          accuracy: accuracy,
+          rank: index + 1
+        };
+      });
+      
+      res.json(analysisData);
+    } catch (error) {
+      console.error("Error fetching tournament analysis:", error);
+      res.status(500).json({ message: "Error fetching tournament analysis" });
+    }
+  });
+
+  // Get tournament matches analysis
+  app.get("/api/tournaments/:id/matches-analysis", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      
+      // Get matches for tournament
+      const matches = await storage.getMatchesByTournament(tournamentId);
+      
+      const matchesAnalysis = await Promise.all(
+        matches.map(async (match) => {
+          // Get prediction stats for this match
+          const predictions = await storage.getPredictionsForMatch(match.id);
+          
+          // Calculate toss predictions
+          const tossTeam1Predictions = predictions.filter(p => p.predictedTossWinnerId === match.team1Id).length;
+          const tossTeam2Predictions = predictions.filter(p => p.predictedTossWinnerId === match.team2Id).length;
+          const totalTossPredictions = tossTeam1Predictions + tossTeam2Predictions;
+          
+          // Calculate match predictions
+          const matchTeam1Predictions = predictions.filter(p => p.predictedMatchWinnerId === match.team1Id).length;
+          const matchTeam2Predictions = predictions.filter(p => p.predictedMatchWinnerId === match.team2Id).length;
+          const totalMatchPredictions = matchTeam1Predictions + matchTeam2Predictions;
+          
+          // Get user predictions with results
+          const userPredictions = await Promise.all(
+            predictions.map(async (prediction) => {
+              const user = await storage.getUser(prediction.userId);
+              if (!user) return null;
+              
+              const tossCorrect = match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId;
+              const matchCorrect = match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId;
+              const pointsEarned = (tossCorrect ? 1 : 0) + (matchCorrect ? 1 : 0);
+              
+              return {
+                userId: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                profileImage: user.profileImage,
+                predictedTossWinner: prediction.predictedTossWinnerId === match.team1Id ? match.team1.name : match.team2.name,
+                predictedMatchWinner: prediction.predictedMatchWinnerId === match.team1Id ? match.team1.name : match.team2.name,
+                tossCorrect: !!tossCorrect,
+                matchCorrect: !!matchCorrect,
+                pointsEarned
+              };
+            })
+          );
+          
+          return {
+            id: match.id,
+            team1: {
+              id: match.team1.id,
+              name: match.team1.name,
+              logoUrl: match.team1.logoUrl
+            },
+            team2: {
+              id: match.team2.id,
+              name: match.team2.name,
+              logoUrl: match.team2.logoUrl
+            },
+            matchDate: match.matchDate.toISOString(),
+            status: match.status,
+            location: match.location,
+            tossWinner: match.tossWinner ? {
+              id: match.tossWinner.id,
+              name: match.tossWinner.name
+            } : undefined,
+            matchWinner: match.matchWinner ? {
+              id: match.matchWinner.id,
+              name: match.matchWinner.name
+            } : undefined,
+            totalPredictions: predictions.length,
+            tossStats: {
+              team1Predictions: tossTeam1Predictions,
+              team2Predictions: tossTeam2Predictions,
+              team1Percentage: totalTossPredictions > 0 ? Math.round((tossTeam1Predictions / totalTossPredictions) * 100) : 0,
+              team2Percentage: totalTossPredictions > 0 ? Math.round((tossTeam2Predictions / totalTossPredictions) * 100) : 0
+            },
+            matchStats: {
+              team1Predictions: matchTeam1Predictions,
+              team2Predictions: matchTeam2Predictions,
+              team1Percentage: totalMatchPredictions > 0 ? Math.round((matchTeam1Predictions / totalMatchPredictions) * 100) : 0,
+              team2Percentage: totalMatchPredictions > 0 ? Math.round((matchTeam2Predictions / totalMatchPredictions) * 100) : 0
+            },
+            userPredictions: userPredictions.filter(Boolean)
+          };
+        })
+      );
+      
+      res.json(matchesAnalysis);
+    } catch (error) {
+      console.error("Error fetching tournament matches analysis:", error);
+      res.status(500).json({ message: "Error fetching tournament matches analysis" });
     }
   });
 

@@ -10,7 +10,8 @@ const createUploadDirectories = () => {
     path.join(process.cwd(), 'public/uploads'),
     path.join(process.cwd(), 'public/uploads/teams'),
     path.join(process.cwd(), 'public/uploads/users'),
-    path.join(process.cwd(), 'public/uploads/site')
+    path.join(process.cwd(), 'public/uploads/site'),
+    path.join(process.cwd(), 'public/uploads/tournaments')
   ];
 
   for (const dir of dirs) {
@@ -72,6 +73,19 @@ const siteLogoStorage = multer.diskStorage({
   }
 });
 
+// Configure storage for tournament images
+const tournamentImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(process.cwd(), 'public/uploads/tournaments'));
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'tournament-' + uniqueSuffix + ext);
+  }
+});
+
 // File filter for images
 const imageFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
@@ -101,6 +115,14 @@ export const uploadUserProfile = multer({
 
 export const uploadSiteLogo = multer({ 
   storage: siteLogoStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
+
+export const uploadTournamentImage = multer({ 
+  storage: tournamentImageStorage,
   fileFilter: imageFileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB

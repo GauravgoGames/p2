@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
-import { Crown, Medal } from 'lucide-react';
+import { Crown, Medal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface LeaderboardUser {
   id: number;
@@ -19,6 +20,9 @@ interface LeaderboardUser {
 const Leaderboard = () => {
   const { user } = useAuth();
   const [timeframe, setTimeframe] = useState('weekly');
+  const [currentPage, setCurrentPage] = useState(0);
+  const usersPerPage = 10;
+  const maxUsers = 20;
 
   const { data: leaderboard, isLoading } = useQuery<LeaderboardUser[]>({
     queryKey: ['/api/leaderboard', timeframe],
@@ -60,10 +64,29 @@ const Leaderboard = () => {
 
   const currentUserRank = findCurrentUserRank();
 
+  // Get paginated data
+  const topUsers = leaderboard ? leaderboard.slice(0, maxUsers) : [];
+  const startIndex = currentPage * usersPerPage;
+  const endIndex = startIndex + usersPerPage;
+  const currentUsers = topUsers.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(topUsers.length / usersPerPage);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
   return (
     <div id="leaderboard" className="mb-10">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold font-heading text-neutral-800">Leaderboard</h2>
+        <h2 className="text-2xl font-bold font-heading text-neutral-800">Top 20 Predictors</h2>
         <Tabs defaultValue="weekly" value={timeframe} onValueChange={handleTimeframeChange}>
           <TabsList>
             <TabsTrigger value="weekly">Weekly</TabsTrigger>
@@ -103,17 +126,17 @@ const Leaderboard = () => {
                       <td className="py-4 pr-4"><Skeleton className="h-6 w-8" /></td>
                     </tr>
                   ))
-                ) : leaderboard && leaderboard.length > 0 ? (
-                  leaderboard.slice(0, 10).map((entry, index) => (
+                ) : currentUsers && currentUsers.length > 0 ? (
+                  currentUsers.map((entry, index) => (
                     <tr 
                       key={entry.id} 
                       className={`border-b border-neutral-100 hover:bg-neutral-50 ${entry.id === user?.id ? 'bg-neutral-50' : ''}`}
                     >
                       <td className="py-4 pl-4">
                         <div className="flex items-center">
-                          <span className="font-medium text-neutral-800">{index + 1}</span>
+                          <span className="font-medium text-neutral-800">{startIndex + index + 1}</span>
                           <div className="ml-2">
-                            {getRankIcon(index + 1)}
+                            {getRankIcon(startIndex + index + 1)}
                           </div>
                         </div>
                       </td>
@@ -206,6 +229,40 @@ const Leaderboard = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-200">
+              <div className="text-sm text-neutral-500">
+                Showing {startIndex + 1} to {Math.min(endIndex, topUsers.length)} of {topUsers.length} users
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 0}
+                  className="flex items-center"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="text-sm text-neutral-500">
+                  Page {currentPage + 1} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage >= totalPages - 1}
+                  className="flex items-center"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

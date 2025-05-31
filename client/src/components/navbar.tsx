@@ -76,6 +76,12 @@ const Navbar = () => {
           </div>
           <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
             <div 
+              onClick={() => window.location.href = 'https://www.pro-ace-predictions.co.uk/'}
+              className="px-3 py-2 text-sm font-medium cursor-pointer text-neutral-800 hover:text-primary"
+            >
+              MainSite
+            </div>
+            <div 
               onClick={() => window.location.href = '/'}
               className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
             >
@@ -87,34 +93,28 @@ const Navbar = () => {
             >
               Predict Now
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className={`px-3 py-2 text-sm font-medium cursor-pointer flex items-center gap-1 ${location.startsWith('/tournaments') ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}>
+                  Tournaments
+                  <ChevronDown className="h-3 w-3" />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => window.location.href = '/tournaments'}>
+                  All Tournaments
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.location.href = '/tournaments/1/analysis'}>
+                  Tournament Analysis
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div 
               onClick={() => window.location.href = '/leaderboard'}
               className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/leaderboard' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
             >
               Leaderboard
             </div>
-            <div 
-              onClick={() => window.location.href = '/help'}
-              className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/help' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
-            >
-              Help
-            </div>
-            {user && (
-                <>
-                  <div 
-                    onClick={() => window.location.href = '/profile'}
-                    className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/profile' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
-                  >
-                    My Profile
-                  </div>
-                  <div 
-                    onClick={() => window.location.href = '/profile/update'}
-                    className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/profile/update' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
-                  >
-                    Update Profile
-                  </div>
-                </>
-              )}
           </div>
           <div className="flex items-center">
             <div className="hidden md:block">
@@ -144,6 +144,12 @@ const Navbar = () => {
                       <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
                         Your Profile
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => window.location.href = '/profile/update'}>
+                        Update Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => window.location.href = '/help'}>
+                        Help
+                      </DropdownMenuItem>
                       {user.role === 'admin' && (
                         <>
                           <DropdownMenuSeparator />
@@ -155,6 +161,9 @@ const Navbar = () => {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => window.location.href = '/admin/teams'}>
                             Manage Teams
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => window.location.href = '/admin/tournaments'}>
+                            Manage Tournaments
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => window.location.href = '/admin/users'}>
                             Manage Users
@@ -220,6 +229,28 @@ const Navbar = () => {
             </div>
             <div
               className={`block px-3 py-2 text-base font-medium cursor-pointer ${
+                location.startsWith('/tournaments') ? 'text-primary' : 'text-neutral-800 hover:bg-neutral-100'
+              }`}
+              onClick={() => {
+                window.location.href = '/tournaments';
+                setIsMobileMenuOpen(false);
+              }}
+            >
+              Tournaments
+            </div>
+            <div
+              className={`block px-3 py-2 text-base font-medium cursor-pointer ${
+                location.includes('/analysis') ? 'text-primary' : 'text-neutral-800 hover:bg-neutral-100'
+              }`}
+              onClick={() => {
+                window.location.href = '/tournaments/1/analysis';
+                setIsMobileMenuOpen(false);
+              }}
+            >
+              Tournament Analysis
+            </div>
+            <div
+              className={`block px-3 py-2 text-base font-medium cursor-pointer ${
                 location === '/leaderboard' ? 'text-primary' : 'text-neutral-800 hover:bg-neutral-100'
               }`}
               onClick={() => {
@@ -241,17 +272,30 @@ const Navbar = () => {
               Help
             </div>
             {user && (
-              <div
-                className={`block px-3 py-2 text-base font-medium cursor-pointer ${
-                  location === '/profile' ? 'text-primary' : 'text-neutral-800 hover:bg-neutral-100'
-                }`}
-                onClick={() => {
-                  window.location.href = '/profile';
-                  setIsMobileMenuOpen(false);
-                }}
-              >
-                My Profile
-              </div>
+              <>
+                <div
+                  className={`block px-3 py-2 text-base font-medium cursor-pointer ${
+                    location === '/profile' ? 'text-primary' : 'text-neutral-800 hover:bg-neutral-100'
+                  }`}
+                  onClick={() => {
+                    window.location.href = '/profile';
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  My Profile
+                </div>
+                <div
+                  className={`block px-3 py-2 text-base font-medium cursor-pointer ${
+                    location === '/profile/update' ? 'text-primary' : 'text-neutral-800 hover:bg-neutral-100'
+                  }`}
+                  onClick={() => {
+                    window.location.href = '/profile/update';
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  Update Profile
+                </div>
+              </>
             )}
           </div>
           {user ? (
@@ -317,6 +361,15 @@ const Navbar = () => {
                       }}
                     >
                       Manage Teams
+                    </div>
+                    <div 
+                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 
+                      onClick={() => {
+                        window.location.href = '/admin/tournaments';
+                        setIsMobileMenuOpen(false);
+                      }}
+                    >
+                      Manage Tournaments
                     </div>
                     <div 
                       className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 

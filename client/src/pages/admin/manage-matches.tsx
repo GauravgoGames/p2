@@ -64,7 +64,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { CalendarIcon, Plus, Pencil, Trash2, Check, X } from 'lucide-react';
-import { Match, Team, insertMatchSchema, updateMatchResultSchema } from '@shared/schema';
+import { Match, Team, Tournament, insertMatchSchema, updateMatchResultSchema } from '@shared/schema';
 
 // Combined type for a match with teams
 type MatchWithTeams = Match & {
@@ -76,6 +76,7 @@ type MatchWithTeams = Match & {
 
 // New match form schema
 const newMatchSchema = z.object({
+  tournamentId: z.coerce.number().positive("Please select a tournament").optional(),
   tournamentName: z.string().min(1, "Tournament name is required"),
   team1Id: z.coerce.number().positive("Please select Team 1"),
   team2Id: z.coerce.number().positive("Please select Team 2"),
@@ -86,14 +87,24 @@ const newMatchSchema = z.object({
   status: z.enum(['upcoming', 'ongoing', 'completed']).default('upcoming'),
 });
 
-// Update match result schema
+// Update match result schema with conditional validation
 const updateResultSchema = z.object({
   tossWinnerId: z.coerce.number().positive("Please select the toss winner").optional(),
   matchWinnerId: z.coerce.number().positive("Please select the match winner").optional(),
   team1Score: z.string().optional(),
   team2Score: z.string().optional(),
-  resultSummary: z.string().min(1, "Result summary is required").optional(),
+  resultSummary: z.string().optional(),
   status: z.enum(['upcoming', 'ongoing', 'completed', 'tie', 'void']).default('completed'),
+}).refine((data) => {
+  // For completed matches, require result summary and scores are recommended
+  if (data.status === 'completed') {
+    return data.resultSummary && data.resultSummary.length > 0;
+  }
+  // For void and tie matches, scores and result summary are optional
+  return true;
+}, {
+  message: "Result summary is required for completed matches",
+  path: ["resultSummary"],
 });
 
 const ManageMatches = () => {
@@ -126,12 +137,17 @@ const ManageMatches = () => {
     }
   });
 
-  // Create match form
-  // Custom team form schema
-  const customTeamSchema = z.object({
-    name: z.string().min(1, "Team name is required"),
+  // Fetch all tournaments
+  const { data: tournaments } = useQuery<Tournament[]>({
+    queryKey: ['/api/tournaments'],
+    queryFn: async () => {
+      const res = await fetch('/api/tournaments');
+      if (!res.ok) throw new Error('Failed to fetch tournaments');
+      return res.json();
+    }
   });
 
+  // Create match form
   const createMatchForm = useForm<z.infer<typeof newMatchSchema>>({
     resolver: zodResolver(newMatchSchema),
     defaultValues: {
@@ -140,6 +156,29 @@ const ManageMatches = () => {
       status: 'upcoming',
     },
   });
+
+  // Watch tournament selection to filter teams
+  const selectedTournamentId = createMatchForm.watch('tournamentId');
+  
+  // Fetch teams for selected tournament
+  const { data: tournamentTeams } = useQuery<Team[]>({
+    queryKey: ['/api/tournaments', selectedTournamentId, 'teams'],
+    queryFn: async () => {
+      if (!selectedTournamentId) return [];
+      const res = await fetch(`/api/tournaments/${selectedTournamentId}/teams`);
+      if (!res.ok) throw new Error('Failed to fetch tournament teams');
+      return res.json();
+    },
+    enabled: !!selectedTournamentId
+  });
+
+  // Custom team form schema
+  const customTeamSchema = z.object({
+    name: z.string().min(1, "Team name is required"),
+  });
+
+  // Use tournament teams if a tournament is selected, otherwise use all teams
+  const availableTeams = selectedTournamentId ? (tournamentTeams || []) : (teams || []);
 
   const customTeamForm = useForm<z.infer<typeof customTeamSchema>>({
     resolver: zodResolver(customTeamSchema),
@@ -422,17 +461,60 @@ const ManageMatches = () => {
             <form onSubmit={createMatchForm.handleSubmit(onCreateMatchSubmit)} className="space-y-6">
               <FormField
                 control={createMatchForm.control}
-                name="tournamentName"
+                name="tournamentId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tournament Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. T20 World Cup" {...field} />
-                    </FormControl>
+                    <FormLabel>Tournament</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        if (value === "custom") {
+                          field.onChange(undefined);
+                          createMatchForm.setValue("tournamentName", "");
+                        } else {
+                          field.onChange(value);
+                          const selectedTournament = tournaments?.find(t => t.id.toString() === value);
+                          if (selectedTournament) {
+                            createMatchForm.setValue("tournamentName", selectedTournament.name);
+                          }
+                        }
+                      }}
+                      defaultValue={field.value?.toString()}
+                      disabled={false}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select tournament" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {tournaments?.map((tournament) => (
+                          <SelectItem key={tournament.id} value={tournament.id.toString()}>
+                            {tournament.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom Tournament</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {!createMatchForm.watch("tournamentId") && (
+                <FormField
+                  control={createMatchForm.control}
+                  name="tournamentName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custom Tournament Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. T20 World Cup" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -452,7 +534,7 @@ const ManageMatches = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {teams?.map((team) => (
+                          {availableTeams?.map((team) => (
                             <SelectItem key={team.id} value={team.id.toString()}>
                               {team.name}
                             </SelectItem>
@@ -481,7 +563,7 @@ const ManageMatches = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {teams?.map((team) => (
+                          {availableTeams?.map((team) => (
                             <SelectItem key={team.id} value={team.id.toString()}>
                               {team.name}
                             </SelectItem>
@@ -712,6 +794,8 @@ const ManageMatches = () => {
                 />
               )}
 
+              {/* Score fields - only show when not void or tie */}
+              {updateResultForm.watch('status') !== 'void' && updateResultForm.watch('status') !== 'tie' && (
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={updateResultForm.control}
@@ -741,26 +825,39 @@ const ManageMatches = () => {
                     )}
                   />
                 </div>
+              )}
 
+              {/* Result Summary - only show when not void */}
+              {updateResultForm.watch('status') !== 'void' && (
                 <FormField
                   control={updateResultForm.control}
                   name="resultSummary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Result Summary</FormLabel>
+                      <FormLabel>
+                        Result Summary {updateResultForm.watch('status') === 'completed' && '*'}
+                      </FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="e.g. India won by 21 runs" 
+                          placeholder={
+                            updateResultForm.watch('status') === 'tie' 
+                              ? "e.g. Match tied" 
+                              : "e.g. India won by 21 runs"
+                          } 
                           {...field} 
                         />
                       </FormControl>
                       <FormDescription>
-                        Brief summary of the match result
+                        {updateResultForm.watch('status') === 'completed' 
+                          ? "Required: Brief summary of the match result"
+                          : "Optional: Brief summary of the match result"
+                        }
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              )}
 
                 <DialogFooter>
                   <Button 

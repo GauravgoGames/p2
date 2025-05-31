@@ -1,0 +1,14 @@
+# Enable Rewrite Engine
+RewriteEngine On
+RewriteBase /
+
+# Serve static assets directly
+RewriteRule ^assets/(.*)$ dist/public/assets/$1 [L]
+RewriteRule ^uploads/(.*)$ public/uploads/$1 [L]
+
+# API requests - proxy to Node.js server
+RewriteRule ^api/(.*)$ http://localhost:5000/api/$1 [P,L]
+
+# For all other paths, serve the index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ dist/public/index.html [L]
