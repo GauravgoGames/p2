@@ -65,7 +65,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Plus, MoreHorizontal, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Pencil, Trash2, ChevronLeft, ChevronRight, Shield, ShieldCheck } from 'lucide-react';
 import { User, InsertUser } from '@shared/schema';
 
 // User create form schema
@@ -81,10 +81,9 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   displayName: z.string().optional(),
-  email: z.string().email("Invalid email format").optional(),
-  profileImage: z.string().url("Must be a valid URL").optional(),
+  email: z.union([z.string().email(), z.literal('')]).optional(),
   role: z.enum(['user', 'admin']),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  password: z.string().optional(), // Made completely optional
   proaceUserId: z.string().optional(),
   isVerified: z.boolean(),
 });
@@ -125,10 +124,13 @@ const ManageUsers = () => {
   const editUserForm = useForm<z.infer<typeof updateUserSchema>>({
     resolver: zodResolver(updateUserSchema),
     defaultValues: {
+      username: '',
       displayName: '',
       email: '',
-      profileImage: '',
       role: 'user',
+      password: '',
+      proaceUserId: '',
+      isVerified: false,
     },
   });
   
@@ -206,6 +208,28 @@ const ManageUsers = () => {
       });
     },
   });
+
+  // Quick verification mutation
+  const verifyUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await apiRequest('PATCH', `/api/admin/users/${userId}/verify`, { isVerified: true });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'User Verified',
+        description: 'The user has been successfully verified',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to verify user',
+        variant: 'destructive',
+      });
+    },
+  });
   
   // Form submission handlers
   const onCreateUserSubmit = (data: z.infer<typeof createUserSchema>) => {
@@ -223,7 +247,6 @@ const ManageUsers = () => {
       username: user.username,
       displayName: user.displayName || '',
       email: user.email || '',
-      profileImage: user.profileImage || '',
       role: user.role || 'user',
       password: '', // Empty for optional password change
       proaceUserId: user.proaceUserId || '',
@@ -422,6 +445,15 @@ const ManageUsers = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {!user.isVerified && (
+                              <DropdownMenuItem 
+                                onClick={() => verifyUserMutation.mutate(user.id)}
+                                className="text-green-600 focus:text-green-600"
+                              >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Verify User
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => handleEditUser(user)}>
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
@@ -679,60 +711,7 @@ const ManageUsers = () => {
                   )}
                 />
                 
-                <FormField
-                  control={editUserForm.control}
-                  name="profileImage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Profile Image</FormLabel>
-                      <FormControl>
-                        <div className="space-y-2">
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const formData = new FormData();
-                                formData.append('profileImage', file);
-                                
-                                fetch('/api/upload', {
-                                  method: 'POST',
-                                  body: formData,
-                                })
-                                .then(res => res.json())
-                                .then(data => {
-                                  if (data.url) {
-                                    field.onChange(data.url);
-                                  }
-                                })
-                                .catch(console.error);
-                              }
-                            }}
-                          />
-                          {field.value && (
-                            <div className="flex items-center gap-2">
-                              <img 
-                                src={field.value} 
-                                alt="Profile preview" 
-                                className="w-16 h-16 object-cover rounded-full"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => field.onChange('')}
-                              >
-                                Remove
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
                 
                 <FormField
                   control={editUserForm.control}

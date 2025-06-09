@@ -459,8 +459,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/users/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      const updatedUser = await storage.updateUser(id, req.body);
-      res.json(updatedUser);
+      const updateData = { ...req.body };
+      
+      // Handle password update properly
+      if (updateData.password && updateData.password.trim() !== '') {
+        updateData.password = await hashPassword(updateData.password);
+      } else {
+        // Remove password field if empty to avoid overwriting existing password
+        delete updateData.password;
+      }
+      
+      const updatedUser = await storage.updateUser(id, updateData);
+      
+      // Remove password from response
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
     } catch (error) {
       res.status(400).json({ message: "Invalid user data", error });
     }
