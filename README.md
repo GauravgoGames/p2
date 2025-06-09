@@ -1,62 +1,51 @@
-# P2 - ProAce Predictions Platform
+# CricProAce - Sports Prediction Platform
 
-Complete cricket prediction platform with advanced tournament management and user analytics.
+A comprehensive cricket prediction platform with tournament management, user verification system, and support ticket functionality.
 
-## Latest Updates
-- Mobile-responsive navigation with complete menu items
-- Performance charts optimized for mobile devices  
-- Header navigation with MainSite integration
-- Footer enhanced with external links
-- Tournament interface improvements
-- Complete mobile/tablet responsiveness
+## Features
+- Advanced tournament and match management
+- User prediction system with points and leaderboards
+- Admin verification system with badges
+- Support ticket system with real-time chat
+- Mobile-responsive design
+- PostgreSQL database integration
+
+## Technology Stack
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **Backend**: Express.js + TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Custom session-based auth
+- **UI Components**: Shadcn/ui + Radix UI
 
 ## Quick Start
 
-### Local Development
-```bash
-npm install
-cp .env.example .env
-# Edit .env with your database credentials
-npm run db:push
-npm run dev
-```
+### For cPanel Hosting:
 
-### Production Deployment (cPanel)
-```bash
-npm install
-npm run build
-npm run db:push
-pm2 start dist/index.js --name proace-predictions
-```
+1. Upload all files to your cPanel file manager
+2. Install Node.js via cPanel (if available) or contact hosting provider
+3. Set up PostgreSQL database in cPanel
+4. Configure environment variables in `.env` file
+5. Run deployment script:
+   ```bash
+   chmod +x cpanel-deploy.sh
+   ./cpanel-deploy.sh
+   ```
 
-## Project Structure
-- `client/` - React frontend application
-- `server/` - Node.js backend API
-- `shared/` - Shared types and database schemas
-- `public/` - Static assets and file uploads
-- Various deployment packages for different hosting scenarios
+### Environment Setup:
+1. Copy `.env.example` to `.env`
+2. Update database credentials
+3. Set a secure SESSION_SECRET
+4. Configure your domain settings
 
-## Features
-- User authentication and profile management
-- Cricket match predictions with points system
-- Tournament management and analysis
-- Real-time leaderboards with interactive charts
-- Admin dashboard for comprehensive management
-- Mobile-responsive design for all devices
-- File upload system for logos and profiles
+### Database Setup:
+The application will automatically create required tables on first run.
 
-## Tech Stack
-- Frontend: React + TypeScript + Tailwind CSS
-- Backend: Node.js + Express + Passport.js
-- Database: PostgreSQL with Drizzle ORM
-- Charts: Recharts for data visualization
-- Process Management: PM2 for production
+## Admin Access
+Default admin credentials:
+- Username: admin
+- Password: admin123
 
-## Deployment Packages
-The repository includes multiple deployment configurations:
-- `cpanel-package/` - cPanel-specific deployment
-- `deployment/` - General deployment scripts
-- `enhanced-package/` - Enhanced features package
-- `fresh_cpanel_package/` - Latest cPanel deployment
+**Important**: Change admin password immediately after first login!
 
-Choose the appropriate package based on your hosting environment.
+## Support
+For technical support, please refer to the documentation or contact the development team.

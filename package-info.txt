@@ -1,0 +1,30 @@
+CricProAce - Complete GitHub Deployment Package
+===============================================
+
+This package contains all files needed for deployment:
+
+CORE APPLICATION:
+- client/ - React frontend application
+- server/ - Express.js backend server
+- shared/ - Shared TypeScript types and schemas
+- public/ - Static assets and uploads directory
+
+CONFIGURATION:
+- package.json - Dependencies and scripts
+- tsconfig.json - TypeScript configuration
+- vite.config.ts - Vite build configuration
+- tailwind.config.ts - Tailwind CSS configuration
+- drizzle.config.ts - Database ORM configuration
+
+DEPLOYMENT:
+- cpanel-deploy.sh - Automated cPanel deployment script
+- .htaccess - Apache server configuration
+- .env.example - Environment variables template
+- README.md - Complete setup instructions
+
+DOCUMENTATION:
+- DEPLOYMENT.md - General deployment guide
+- DEPLOYMENT_GUIDE.md - Detailed deployment instructions
+- cpanel-deployment-guide.md - cPanel specific guide
+
+Upload this entire package to your GitHub repository, then follow the cPanel instructions below.

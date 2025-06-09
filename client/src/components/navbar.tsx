@@ -10,6 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 
@@ -75,17 +81,38 @@ const Navbar = () => {
             </div>
           </div>
           <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-            <div 
-              onClick={() => window.location.href = 'https://www.pro-ace-predictions.co.uk/'}
-              className="px-3 py-2 text-sm font-medium cursor-pointer text-neutral-800 hover:text-primary"
-            >
-              MainSite
-            </div>
-            <div 
-              onClick={() => window.location.href = '/'}
-              className={`px-3 py-2 text-sm font-medium cursor-pointer ${location === '/' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
-            >
-              Home
+            <div className="relative group">
+              <div 
+                onClick={() => window.location.href = '/'}
+                className={`px-3 py-2 text-sm font-medium cursor-pointer flex items-center gap-1 ${location === '/' ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
+              >
+                Home
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </div>
+              
+              {/* Hover submenu */}
+              <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div className="py-1">
+                  <div 
+                    onClick={() => window.open('https://www.pro-ace-predictions.co.uk/', '_blank')}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    Main Website
+                  </div>
+                  <div 
+                    onClick={() => window.open('https://www.pro-ace-predictions.co.uk/blog', '_blank')}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    Blog
+                  </div>
+                  <div 
+                    onClick={() => window.open('https://www.pro-ace-predictions.co.uk/about', '_blank')}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    About Us
+                  </div>
+                </div>
+              </div>
             </div>
             <div 
               onClick={() => window.location.href = '/predict'}
@@ -93,6 +120,7 @@ const Navbar = () => {
             >
               Predict Now
             </div>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div className={`px-3 py-2 text-sm font-medium cursor-pointer flex items-center gap-1 ${location.startsWith('/tournaments') ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}>
@@ -115,6 +143,12 @@ const Navbar = () => {
             >
               Leaderboard
             </div>
+            <div 
+              onClick={() => window.location.href = '/support'}
+              className={`px-3 py-2 text-sm font-medium cursor-pointer ${location.startsWith('/support') ? 'text-primary' : 'text-neutral-800 hover:text-primary'}`}
+            >
+              Support
+            </div>
           </div>
           <div className="flex items-center">
             <div className="hidden md:block">
@@ -127,58 +161,82 @@ const Navbar = () => {
                     Login
                   </Button>
                 ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger className="focus:outline-none">
-                      <div className="ml-3 relative flex items-center">
-                        <Avatar className="h-8 w-8 border-2 border-neutral-100">
-                          <AvatarImage src={user.profileImage || ''} alt={user.username} />
-                          <AvatarFallback className="bg-primary text-white">
-                            {user.username.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="ml-2 font-medium text-neutral-800">{user.displayName || user.username}</span>
-                        <ChevronDown className="ml-1 h-4 w-4 text-neutral-500" />
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
-                        Your Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => window.location.href = '/profile/update'}>
-                        Update Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => window.location.href = '/help'}>
-                        Help
-                      </DropdownMenuItem>
-                      {user.role === 'admin' && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => window.location.href = '/admin'}>
-                            Admin Dashboard
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.location.href = '/admin/matches'}>
-                            Manage Matches
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.location.href = '/admin/teams'}>
-                            Manage Teams
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.location.href = '/admin/tournaments'}>
-                            Manage Tournaments
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.location.href = '/admin/users'}>
-                            Manage Users
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => window.location.href = '/admin/settings'}>
-                            Site Settings
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout}>
-                        Sign out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.href = '/profile/update'}
+                      className="text-sm"
+                    >
+                      Update Profile
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="focus:outline-none">
+                        <div className="ml-3 relative flex items-center">
+                          <Avatar className="h-8 w-8 border-2 border-neutral-100">
+                            <AvatarImage src={user.profileImage || ''} alt={user.username} />
+                            <AvatarFallback className="bg-primary text-white">
+                              {user.username.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="ml-2 flex items-center gap-1">
+                            <span className="font-medium text-neutral-800">{user.displayName || user.username}</span>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className={user.isVerified ? "text-green-500" : "text-red-500"}>
+                                    {user.isVerified ? "✅" : "❌"}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{user.isVerified ? "Verified User" : "Verification Required - Contact admin to verify your account"}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                          <ChevronDown className="ml-1 h-4 w-4 text-neutral-500" />
+                        </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+                          Your Profile
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => window.location.href = '/help'}>
+                          Help
+                        </DropdownMenuItem>
+                        {user.role === 'admin' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin'}>
+                              Admin Dashboard
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/matches'}>
+                              Manage Matches
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/teams'}>
+                              Manage Teams
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/tournaments'}>
+                              Manage Tournaments
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/users'}>
+                              Manage Users
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/settings'}>
+                              Site Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/support'}>
+                              Ticket Management
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleLogout}>
+                          Sign out
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 )}
               </div>
             </div>
@@ -310,7 +368,21 @@ const Navbar = () => {
                   </Avatar>
                 </div>
                 <div className="ml-3">
-                  <div className="text-base font-medium text-neutral-800">{user.displayName || user.username}</div>
+                  <div className="text-base font-medium text-neutral-800 flex items-center gap-2">
+                    {user.displayName || user.username}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className={user.isVerified ? "text-green-500" : "text-red-500"}>
+                            {user.isVerified ? "✅" : "❌"}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{user.isVerified ? "Verified User" : "Verification Required - Contact admin to verify your account"}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <div className="text-sm font-medium text-neutral-500">{user.email}</div>
                 </div>
               </div>

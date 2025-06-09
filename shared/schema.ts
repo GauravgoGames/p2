@@ -8,6 +8,12 @@ export const userRoleEnum = pgEnum('user_role', ['user', 'admin']);
 // Match status enum
 export const matchStatusEnum = pgEnum('match_status', ['upcoming', 'ongoing', 'completed', 'tie', 'void']);
 
+// Ticket status enum
+export const ticketStatusEnum = pgEnum('ticket_status', ['open', 'in_progress', 'resolved', 'closed']);
+
+// Ticket priority enum
+export const ticketPriorityEnum = pgEnum('ticket_priority', ['low', 'medium', 'high', 'urgent']);
+
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -18,6 +24,10 @@ export const users = pgTable("users", {
   profileImage: text("profile_image"),
   role: userRoleEnum("role").default('user').notNull(),
   points: integer("points").default(0).notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
+  proaceUserId: text("proace_user_id"),
+  proaceDisqusId: text("proace_disqus_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Teams table
@@ -93,6 +103,29 @@ export const siteSettings = pgTable("site_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Support tickets table
+export const supportTickets = pgTable("support_tickets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  subject: text("subject").notNull(),
+  status: ticketStatusEnum("status").default('open').notNull(),
+  priority: ticketPriorityEnum("priority").default('medium').notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at"),
+  assignedToUserId: integer("assigned_to_user_id"), // admin who handles the ticket
+});
+
+// Ticket messages table for chat history
+export const ticketMessages = pgTable("ticket_messages", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull(),
+  userId: integer("user_id").notNull(),
+  message: text("message").notNull(),
+  isAdminReply: boolean("is_admin_reply").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Schema validation
 export const insertUserSchema = createInsertSchema(users)
   .pick({
@@ -102,13 +135,19 @@ export const insertUserSchema = createInsertSchema(users)
     email: true,
     profileImage: true,
     role: true,
+    proaceUserId: true,
+    proaceDisqusId: true,
   })
   .extend({
     // Make profile image truly optional
     profileImage: z.string().url().optional().or(z.literal('')),
     // Make email and display name also properly optional
     email: z.string().email().optional().or(z.literal('')),
-    displayName: z.string().optional().or(z.literal(''))
+    displayName: z.string().optional().or(z.literal('')),
+    // Make proace user ID optional
+    proaceUserId: z.string().optional().or(z.literal('')),
+    // Make proace disqus ID optional
+    proaceDisqusId: z.string().optional().or(z.literal('')),
   });
 
 export const insertTeamSchema = createInsertSchema(teams)
@@ -198,3 +237,14 @@ export type PointsLedgerEntry = typeof pointsLedger.$inferSelect;
 
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type InsertSiteSetting = z.infer<typeof siteSettingsSchema>;
+
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+
+export type TicketMessage = typeof ticketMessages.$inferSelect;
+export type InsertTicketMessage = typeof ticketMessages.$inferInsert;
+
+// Extended TicketMessage interface with username for frontend display
+export interface TicketMessageWithUsername extends TicketMessage {
+  username?: string;
+}

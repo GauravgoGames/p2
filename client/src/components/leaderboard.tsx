@@ -15,6 +15,7 @@ interface LeaderboardUser {
   points: number;
   correctPredictions: number;
   totalMatches: number;
+  isVerified: boolean;
 }
 
 const Leaderboard = () => {
@@ -40,12 +41,14 @@ const Leaderboard = () => {
   const findCurrentUserRank = () => {
     if (!user || !leaderboard) return null;
 
-    const userRank = leaderboard.findIndex(entry => entry.id === user.id);
+    // Filter verified users first, then find current user
+    const verifiedUsers = leaderboard.filter(entry => entry.isVerified);
+    const userRank = verifiedUsers.findIndex(entry => entry.id === user.id);
     if (userRank === -1) return null;
 
     return {
       rank: userRank + 1,
-      ...leaderboard[userRank]
+      ...verifiedUsers[userRank]
     };
   };
 
@@ -64,8 +67,9 @@ const Leaderboard = () => {
 
   const currentUserRank = findCurrentUserRank();
 
-  // Get paginated data
-  const topUsers = leaderboard ? leaderboard.slice(0, maxUsers) : [];
+  // Filter only verified users and get paginated data
+  const verifiedUsers = leaderboard ? leaderboard.filter(user => user.isVerified) : [];
+  const topUsers = verifiedUsers.slice(0, maxUsers);
   const startIndex = currentPage * usersPerPage;
   const endIndex = startIndex + usersPerPage;
   const currentUsers = topUsers.slice(startIndex, endIndex);

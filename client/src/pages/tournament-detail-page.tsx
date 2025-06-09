@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Trophy, Calendar, MapPin, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trophy, Calendar, MapPin, ArrowLeft, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import MatchCard from '@/components/match-card';
@@ -168,9 +171,17 @@ export default function TournamentDetailPage() {
         </Card>
       </motion.div>
 
-      {/* Matches Section */}
+      {/* Matches Section with Filters */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Matches</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Matches</h2>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-500">
+              {matches.length} total matches
+            </span>
+          </div>
+        </div>
         
         {matchesLoading ? (
           <div className="grid gap-6">
@@ -187,21 +198,130 @@ export default function TournamentDetailPage() {
             </div>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {matches.map((match, index) => {
-              const userPrediction = userPredictions.find((p: any) => p.matchId === match.id);
-              return (
-                <motion.div
-                  key={match.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                >
-                  <MatchCard match={match} userPrediction={userPrediction} />
-                </motion.div>
-              );
-            })}
-          </div>
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                All 
+                <Badge variant="secondary" className="text-xs">
+                  {matches.length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="upcoming" className="flex items-center gap-2">
+                Upcoming
+                <Badge variant="secondary" className="text-xs">
+                  {matches.filter(m => m.status === 'upcoming').length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="ongoing" className="flex items-center gap-2">
+                Ongoing
+                <Badge variant="secondary" className="text-xs">
+                  {matches.filter(m => m.status === 'ongoing').length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="flex items-center gap-2">
+                Completed
+                <Badge variant="secondary" className="text-xs">
+                  {matches.filter(m => m.status === 'completed').length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {matches.map((match, index) => {
+                  const userPrediction = userPredictions.find((p: any) => p.matchId === match.id);
+                  return (
+                    <motion.div
+                      key={match.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <MatchCard match={match as any} userPrediction={userPrediction} />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="upcoming">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {matches.filter(m => m.status === 'upcoming').map((match, index) => {
+                  const userPrediction = userPredictions.find((p: any) => p.matchId === match.id);
+                  return (
+                    <motion.div
+                      key={match.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <MatchCard match={match as any} userPrediction={userPrediction} />
+                    </motion.div>
+                  );
+                })}
+              </div>
+              {matches.filter(m => m.status === 'upcoming').length === 0 && (
+                <Card className="p-6 border-dashed border-2 border-gray-200 bg-gray-50">
+                  <div className="text-center py-4 text-gray-600">
+                    <Calendar className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p>No upcoming matches</p>
+                  </div>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ongoing">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {matches.filter(m => m.status === 'ongoing').map((match, index) => {
+                  const userPrediction = userPredictions.find((p: any) => p.matchId === match.id);
+                  return (
+                    <motion.div
+                      key={match.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <MatchCard match={match as any} userPrediction={userPrediction} />
+                    </motion.div>
+                  );
+                })}
+              </div>
+              {matches.filter(m => m.status === 'ongoing').length === 0 && (
+                <Card className="p-6 border-dashed border-2 border-gray-200 bg-gray-50">
+                  <div className="text-center py-4 text-gray-600">
+                    <Trophy className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p>No ongoing matches</p>
+                  </div>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="completed">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {matches.filter(m => m.status === 'completed').map((match, index) => {
+                  const userPrediction = userPredictions.find((p: any) => p.matchId === match.id);
+                  return (
+                    <motion.div
+                      key={match.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <MatchCard match={match as any} userPrediction={userPrediction} />
+                    </motion.div>
+                  );
+                })}
+              </div>
+              {matches.filter(m => m.status === 'completed').length === 0 && (
+                <Card className="p-6 border-dashed border-2 border-gray-200 bg-gray-50">
+                  <div className="text-center py-4 text-gray-600">
+                    <Trophy className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p>No completed matches</p>
+                  </div>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </div>

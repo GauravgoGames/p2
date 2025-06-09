@@ -43,6 +43,7 @@ const AuthPage = () => {
     confirmPassword: z.string(),
     displayName: z.string().optional(),
     email: z.union([z.string().email(), z.literal('')]).optional(),
+    proaceUserId: z.string().optional(),
   }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
@@ -65,6 +66,7 @@ const AuthPage = () => {
       confirmPassword: "",
       displayName: "",
       email: "",
+      proaceUserId: "",
     },
   });
   
@@ -210,7 +212,25 @@ const AuthPage = () => {
                         <FormControl>
                           <Input 
                             type="email" 
-                            placeholder="your@email.com" 
+                            placeholder="Required for Verification" 
+                            {...field} 
+                            disabled={registerMutation.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={registerForm.control}
+                    name="proaceUserId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ProAce User ID (optional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="Required for Verification" 
                             {...field} 
                             disabled={registerMutation.isPending}
                           />
@@ -283,13 +303,7 @@ const AuthPage = () => {
       
       {/* Hero Side */}
       <div className="hidden md:flex flex-1 relative">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: "url('https://images.unsplash.com/photo-1591491707499-21db20ab6b25?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=1200')" 
-          }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/90 to-secondary/90"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary">
           <div className="absolute inset-0 flex flex-col justify-center items-center p-12 text-white">
             <div className="max-w-md text-center">
               <h2 className="text-3xl font-bold mb-6 font-heading">Your Cricket Prediction Platform</h2>

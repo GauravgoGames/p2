@@ -56,6 +56,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
   
+  // Current user endpoint
+  app.get("/api/user", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      // Remove sensitive information
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+      res.status(500).json({ message: "Error fetching user data" });
+    }
+  });
+  
   // Serve static files from public directory
   app.use('/uploads', (req, res, next) => {
     // Set caching headers for images 
@@ -343,6 +360,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      // Check if user is verified
+      const user = await storage.getUserById(userId);
+      if (!user?.isVerified) {
+        return res.status(403).json({ message: "Only verified users can make predictions. Please contact admin for verification." });
       }
       
       const validatedData = insertPredictionSchema.parse({
@@ -807,8 +830,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tournamentId = parseInt(req.params.id, 10);
       
-      // Get matches for tournament
-      const matches = await storage.getMatchesByTournament(tournamentId);
+      // Get matches for tournament - filter to only completed matches
+      const allMatches = await storage.getMatchesByTournament(tournamentId);
+      const matches = allMatches.filter(match => match.status === 'completed');
       
       const matchesAnalysis = await Promise.all(
         matches.map(async (match) => {
@@ -894,6 +918,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching tournament matches analysis:", error);
       res.status(500).json({ message: "Error fetching tournament matches analysis" });
+    }
+  });
+
+  // Admin User Management Routes
+  
+  // Get all users (admin only)
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Remove passwords from response
+      const safeUsers = users.map(({ password, ...user }) => user);
+      res.json(safeUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Error fetching users" });
+    }
+  });
+
+  // Update user verification status (admin only)
+  app.patch("/api/admin/users/:id/verify", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const { isVerified } = req.body;
+      
+      if (typeof isVerified !== 'boolean') {
+        return res.status(400).json({ message: "isVerified must be a boolean value" });
+      }
+      
+      const updatedUser = await storage.updateUserVerification(userId, isVerified);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove password from response
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user verification:", error);
+      res.status(500).json({ message: "Error updating user verification" });
+    }
+  });
+
+  // Support Ticket Routes
+  
+  // Create a new support ticket (user only)
+  app.post("/api/tickets", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { subject, priority } = req.body;
+      if (!subject) {
+        return res.status(400).json({ message: "Subject is required" });
+      }
+
+      const ticket = await storage.createSupportTicket(userId, subject, priority);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ message: "Error creating ticket" });
+    }
+  });
+
+  // Get user's tickets
+  app.get("/api/tickets", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const tickets = await storage.getUserTickets(userId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      res.status(500).json({ message: "Error fetching tickets" });
+    }
+  });
+
+  // Get all tickets (admin only)
+  app.get("/api/admin/tickets", isAdmin, async (req, res) => {
+    try {
+      const tickets = await storage.getAllTickets();
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching all tickets:", error);
+      res.status(500).json({ message: "Error fetching tickets" });
+    }
+  });
+
+  // Get specific ticket with messages
+  app.get("/api/tickets/:id", isAuthenticated, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id, 10);
+      const userId = req.user?.id;
+      const isUserAdmin = req.user?.role === 'admin';
+
+      if (isNaN(ticketId)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      const ticket = await storage.getTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Check if user owns the ticket or is admin
+      if (ticket.userId !== userId && !isUserAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const messages = await storage.getTicketMessages(ticketId);
+      res.json({ ticket, messages });
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      res.status(500).json({ message: "Error fetching ticket" });
+    }
+  });
+
+  // Add message to ticket
+  app.post("/api/tickets/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id, 10);
+      const userId = req.user?.id;
+      const isUserAdmin = req.user?.role === 'admin';
+      const { message } = req.body;
+
+      if (isNaN(ticketId)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      if (!message || message.trim() === '') {
+        return res.status(400).json({ message: "Message cannot be empty" });
+      }
+
+      const ticket = await storage.getTicketById(ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Check if user owns the ticket or is admin
+      if (ticket.userId !== userId && !isUserAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const ticketMessage = await storage.addTicketMessage(
+        ticketId, 
+        userId!, 
+        message.trim(), 
+        isUserAdmin
+      );
+
+      res.json(ticketMessage);
+    } catch (error) {
+      console.error("Error adding message:", error);
+      res.status(500).json({ message: "Error adding message" });
+    }
+  });
+
+  // Update ticket status (admin only)
+  app.patch("/api/tickets/:id/status", isAdmin, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id, 10);
+      const { status, assignedToUserId } = req.body;
+
+      if (isNaN(ticketId)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const updatedTicket = await storage.updateTicketStatus(ticketId, status, assignedToUserId);
+      res.json(updatedTicket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Error updating ticket status" });
+    }
+  });
+
+  // Update ticket (admin only) - alternative route for admin support page
+  app.patch("/api/admin/tickets/:id", isAdmin, async (req, res) => {
+    try {
+      const ticketId = parseInt(req.params.id, 10);
+      const { status, assignedToUserId } = req.body;
+
+      if (isNaN(ticketId)) {
+        return res.status(400).json({ message: "Invalid ticket ID" });
+      }
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const updatedTicket = await storage.updateTicketStatus(ticketId, status, assignedToUserId);
+      res.json(updatedTicket);
+    } catch (error) {
+      console.error("Error updating ticket:", error);
+      res.status(500).json({ message: "Error updating ticket" });
     }
   });
 

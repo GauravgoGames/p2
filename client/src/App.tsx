@@ -11,6 +11,8 @@ import UserProfilePage from "@/pages/user-profile-page";
 import PredictNowPage from "@/pages/predict-now-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
 import HelpPage from "@/pages/help-page";
+import SupportPage from "@/pages/support-page";
+import SupportTicketDetailPage from "@/pages/support-ticket-detail-page";
 import TournamentsPage from "@/pages/tournaments-page";
 import TournamentDetailPage from "@/pages/tournament-detail-page";
 import TournamentAnalysisPage from "@/pages/tournament-analysis-page";
@@ -21,10 +23,12 @@ import ManageTeams from "@/pages/admin/manage-teams";
 import SiteSettings from "@/pages/admin/site-settings";
 import AdminAddTournament from "@/pages/admin-add-tournament";
 import ManageTournaments from "@/pages/admin/manage-tournaments";
+import AdminSupportPage from "@/pages/admin-support-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { AuthProvider } from "./hooks/use-auth";
+import VerificationPopup from "@/components/verification-popup";
 
 function Router() {
   return (
@@ -40,6 +44,8 @@ function Router() {
           <Route path="/tournaments/:tournamentId/analysis" component={TournamentAnalysisPage} />
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/help" component={HelpPage} />
+          <ProtectedRoute path="/support" component={SupportPage} />
+          <ProtectedRoute path="/support/ticket/:id" component={SupportTicketDetailPage} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/profile/update" component={ProfileUpdatePage} />
           <Route path="/users/:username" component={ProfilePage} />
@@ -47,6 +53,7 @@ function Router() {
           <ProtectedRoute path="/admin/matches" component={ManageMatches} adminOnly={true} />
           <ProtectedRoute path="/admin/users" component={ManageUsers} adminOnly={true} />
           <ProtectedRoute path="/admin/teams" component={ManageTeams} adminOnly={true} />
+          <ProtectedRoute path="/admin/support" component={AdminSupportPage} adminOnly={true} />
           <ProtectedRoute path="/admin/tournaments" component={ManageTournaments} adminOnly={true} />
           <ProtectedRoute path="/admin/settings" component={SiteSettings} adminOnly={true} />
           <Route component={NotFound} />

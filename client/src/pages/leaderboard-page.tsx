@@ -20,6 +20,7 @@ interface LeaderboardUser {
   points: number;
   correctPredictions: number;
   totalMatches: number;
+  isVerified: boolean;
 }
 
 interface Tournament {
@@ -74,10 +75,15 @@ const LeaderboardPage = () => {
 
   const filteredUsers = () => {
     if (!leaderboard) return [];
-    if (!searchTerm) return leaderboard;
+    
+    // First filter to only show verified users
+    const verifiedUsers = leaderboard.filter(user => user.isVerified);
+    
+    // Then apply search filter
+    if (!searchTerm) return verifiedUsers;
 
     const term = searchTerm.toLowerCase();
-    return leaderboard.filter(user => 
+    return verifiedUsers.filter(user => 
       user.username.toLowerCase().includes(term) || 
       (user.displayName && user.displayName.toLowerCase().includes(term))
     );
@@ -98,9 +104,13 @@ const LeaderboardPage = () => {
 
   const findCurrentUserRank = () => {
     if (!user || !leaderboard) return null;
-    const userRank = leaderboard.findIndex(entry => entry.id === user.id);
+    
+    // Filter verified users first, then find current user
+    const verifiedUsers = leaderboard.filter(entry => entry.isVerified);
+    const userRank = verifiedUsers.findIndex(entry => entry.id === user.id);
     if (userRank === -1) return null;
-    return { rank: userRank + 1, ...leaderboard[userRank] };
+    
+    return { rank: userRank + 1, ...verifiedUsers[userRank] };
   };
 
   const currentUserRank = findCurrentUserRank();

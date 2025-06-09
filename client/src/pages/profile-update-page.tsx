@@ -16,6 +16,7 @@ import { Camera, Upload, X } from 'lucide-react';
 
 const profileBasicSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
+  proaceDisqusId: z.string().optional(),
 });
 
 const securitySchema = z.object({
@@ -48,6 +49,7 @@ export default function ProfileUpdatePage() {
     resolver: zodResolver(profileBasicSchema),
     defaultValues: {
       displayName: user?.displayName || '',
+      proaceDisqusId: user?.proaceDisqusId || '',
     }
   });
 
@@ -325,6 +327,20 @@ export default function ProfileUpdatePage() {
                         <FormLabel>Display Name</FormLabel>
                         <FormControl>
                           <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={basicForm.control}
+                    name="proaceDisqusId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Proace/Disqus ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter your Proace or Disqus ID (optional)" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

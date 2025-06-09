@@ -1,6 +1,0 @@
-{
-  "scripts": {
-    "start": "node start.js",
-    "setup": "bash cpanel-setup.sh"
-  }
-}

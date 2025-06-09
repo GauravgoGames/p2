@@ -79,10 +79,14 @@ const createUserSchema = z.object({
 
 // User update form schema
 const updateUserSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
   displayName: z.string().optional(),
   email: z.string().email("Invalid email format").optional(),
   profileImage: z.string().url("Must be a valid URL").optional(),
   role: z.enum(['user', 'admin']),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  proaceUserId: z.string().optional(),
+  isVerified: z.boolean(),
 });
 
 const ManageUsers = () => {
@@ -216,10 +220,14 @@ const ManageUsers = () => {
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
     editUserForm.reset({
+      username: user.username,
       displayName: user.displayName || '',
       email: user.email || '',
       profileImage: user.profileImage || '',
       role: user.role || 'user',
+      password: '', // Empty for optional password change
+      proaceUserId: user.proaceUserId || '',
+      isVerified: user.isVerified || false,
     });
     setEditDialogOpen(true);
   };
@@ -368,6 +376,8 @@ const ManageUsers = () => {
                   <TableRow>
                     <TableHead className="w-[250px]">User</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>ProAce ID</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead className="text-right">Points</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
@@ -391,6 +401,12 @@ const ManageUsers = () => {
                         </div>
                       </TableCell>
                       <TableCell>{user.email || '-'}</TableCell>
+                      <TableCell>{user.proaceUserId || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={user.isVerified ? 'default' : 'destructive'}>
+                          {user.isVerified ? 'Verified' : 'Needs Verification'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={user.role === 'admin' ? 'secondary' : 'outline'}>
                           {user.role}
@@ -592,7 +608,21 @@ const ManageUsers = () => {
             </DialogHeader>
             
             <Form {...editUserForm}>
-              <form onSubmit={editUserForm.handleSubmit(onUpdateUserSubmit)} className="space-y-6">
+              <form onSubmit={editUserForm.handleSubmit(onUpdateUserSubmit)} className="space-y-4 max-h-96 overflow-y-auto">
+                <FormField
+                  control={editUserForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter username" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
                 <FormField
                   control={editUserForm.control}
                   name="displayName"
@@ -623,13 +653,107 @@ const ManageUsers = () => {
                 
                 <FormField
                   control={editUserForm.control}
+                  name="proaceUserId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ProAce User ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter ProAce User ID" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editUserForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter new password" type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editUserForm.control}
                   name="profileImage"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Profile Image URL (Optional)</FormLabel>
+                      <FormLabel>Profile Image</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://example.com/image.jpg" {...field} />
+                        <div className="space-y-2">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const formData = new FormData();
+                                formData.append('profileImage', file);
+                                
+                                fetch('/api/upload', {
+                                  method: 'POST',
+                                  body: formData,
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                  if (data.url) {
+                                    field.onChange(data.url);
+                                  }
+                                })
+                                .catch(console.error);
+                              }
+                            }}
+                          />
+                          {field.value && (
+                            <div className="flex items-center gap-2">
+                              <img 
+                                src={field.value} 
+                                alt="Profile preview" 
+                                className="w-16 h-16 object-cover rounded-full"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => field.onChange('')}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editUserForm.control}
+                  name="isVerified"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Verification Status</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === 'true')}
+                        defaultValue={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select verification status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="true">Verified</SelectItem>
+                          <SelectItem value="false">Not Verified</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

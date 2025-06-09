@@ -10,7 +10,12 @@ import {
   UpdateMatchResult, 
   Prediction, 
   InsertPrediction, 
-  PointsLedgerEntry 
+  PointsLedgerEntry,
+  SupportTicket,
+  InsertSupportTicket,
+  TicketMessage,
+  TicketMessageWithUsername,
+  InsertTicketMessage
 } from "@shared/schema";
 import createMemoryStore from "memorystore";
 import session from "express-session";
@@ -37,6 +42,7 @@ interface LeaderboardUser {
   points: number;
   correctPredictions: number;
   totalMatches: number;
+  isVerified?: boolean;
 }
 
 export interface IStorage {
@@ -45,10 +51,12 @@ export interface IStorage {
   
   // User methods
   getUser(id: number): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUser(id: number, userData: Partial<User>): Promise<User>;
+  updateUserVerification(id: number, isVerified: boolean): Promise<User>;
   deleteUser(id: number): Promise<void>;
   
   // Team methods
@@ -96,6 +104,15 @@ export interface IStorage {
   // Point calculation
   calculatePoints(matchId: number): Promise<void>;
   addPointsToUser(userId: number, points: number, matchId: number, reason: string): Promise<void>;
+  
+  // Support ticket methods
+  createSupportTicket(userId: number, subject: string, priority?: string): Promise<SupportTicket>;
+  getUserTickets(userId: number): Promise<SupportTicket[]>;
+  getAllTickets(): Promise<SupportTicket[]>;
+  getTicketById(ticketId: number): Promise<SupportTicket | undefined>;
+  updateTicketStatus(ticketId: number, status: string, assignedToUserId?: number): Promise<SupportTicket>;
+  addTicketMessage(ticketId: number, userId: number, message: string, isAdminReply?: boolean): Promise<TicketMessage>;
+  getTicketMessages(ticketId: number): Promise<TicketMessageWithUsername[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -108,6 +125,8 @@ export class MemStorage implements IStorage {
   private pointsLedger: Map<number, PointsLedgerEntry>;
   private settings: Map<string, string>;
   private tournamentTeams: Map<string, boolean>; // key: "tournamentId-teamId"
+  private supportTickets: Map<number, SupportTicket>;
+  private ticketMessages: Map<number, TicketMessage>;
   
   sessionStore: session.SessionStore;
   
@@ -117,6 +136,8 @@ export class MemStorage implements IStorage {
   private matchCounter: number;
   private predictionCounter: number;
   private pointsLedgerCounter: number;
+  private ticketCounter: number;
+  private ticketMessageCounter: number;
 
   constructor() {
     const MemoryStore = createMemoryStore(session);
@@ -133,6 +154,8 @@ export class MemStorage implements IStorage {
     this.pointsLedger = new Map();
     this.settings = new Map();
     this.tournamentTeams = new Map();
+    this.supportTickets = new Map();
+    this.ticketMessages = new Map();
     
     this.userCounter = 1;
     this.teamCounter = 1;
@@ -140,6 +163,8 @@ export class MemStorage implements IStorage {
     this.matchCounter = 1;
     this.predictionCounter = 1;
     this.pointsLedgerCounter = 1;
+    this.ticketCounter = 1;
+    this.ticketMessageCounter = 1;
     
     // Initialize default settings
     this.settings.set('siteLogo', '/uploads/site/default-logo.svg');
@@ -172,7 +197,11 @@ export class MemStorage implements IStorage {
     
     this.users.set(this.userCounter, {
       ...adminUser,
-      id: this.userCounter++
+      id: this.userCounter++,
+      isVerified: true,
+      proaceUserId: null,
+      proaceDisqusId: null,
+      createdAt: new Date()
     });
     
     console.log('Admin user created successfully');
@@ -200,6 +229,10 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
+  async getUserById(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
       (user) => user.username.toLowerCase() === username.toLowerCase()
@@ -208,7 +241,19 @@ export class MemStorage implements IStorage {
 
   async createUser(userData: InsertUser): Promise<User> {
     const id = this.userCounter++;
-    const user: User = { ...userData, id, points: 0 };
+    const user: User = { 
+      ...userData, 
+      id, 
+      points: 0,
+      isVerified: false,
+      proaceUserId: userData.proaceUserId || null,
+      proaceDisqusId: userData.proaceDisqusId ?? null,
+      createdAt: new Date(),
+      displayName: userData.displayName || null,
+      email: userData.email || null,
+      profileImage: userData.profileImage || null,
+      role: userData.role || 'user'
+    };
     this.users.set(id, user);
     return user;
   }
@@ -224,6 +269,17 @@ export class MemStorage implements IStorage {
     }
     
     const updatedUser = { ...user, ...userData };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async updateUserVerification(id: number, isVerified: boolean): Promise<User> {
+    const user = await this.getUser(id);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const updatedUser = { ...user, isVerified };
     this.users.set(id, updatedUser);
     return updatedUser;
   }
@@ -456,7 +512,8 @@ export class MemStorage implements IStorage {
           profileImage: user.profileImage,
           points: user.points,
           correctPredictions,
-          totalMatches: filteredPredictions.length
+          totalMatches: filteredPredictions.length,
+          isVerified: user.isVerified
         };
       })
     );
@@ -509,7 +566,8 @@ export class MemStorage implements IStorage {
           profileImage: user.profileImage,
           points: tournamentPoints,
           correctPredictions,
-          totalMatches: filteredPredictions.length
+          totalMatches: filteredPredictions.length,
+          isVerified: user.isVerified
         };
       })
     );
@@ -731,6 +789,99 @@ export class MemStorage implements IStorage {
       const predDate = new Date(pred.createdAt);
       return predDate >= startDate && predDate <= now;
     });
+  }
+
+  // Support ticket methods
+  async createSupportTicket(userId: number, subject: string, priority: string = 'medium'): Promise<SupportTicket> {
+    const id = this.ticketCounter++;
+    const ticket: SupportTicket = {
+      id,
+      userId,
+      subject,
+      status: 'open',
+      priority: priority as any,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      resolvedAt: null,
+      assignedToUserId: null,
+    };
+    this.supportTickets.set(id, ticket);
+    return ticket;
+  }
+
+  async getUserTickets(userId: number): Promise<SupportTicket[]> {
+    return Array.from(this.supportTickets.values()).filter(
+      ticket => ticket.userId === userId
+    );
+  }
+
+  async getAllTickets(): Promise<SupportTicket[]> {
+    return Array.from(this.supportTickets.values());
+  }
+
+  async getTicketById(ticketId: number): Promise<SupportTicket | undefined> {
+    return this.supportTickets.get(ticketId);
+  }
+
+  async updateTicketStatus(ticketId: number, status: string, assignedToUserId?: number): Promise<SupportTicket> {
+    const ticket = this.supportTickets.get(ticketId);
+    if (!ticket) {
+      throw new Error('Ticket not found');
+    }
+
+    const updatedTicket: SupportTicket = {
+      ...ticket,
+      status: status as any,
+      updatedAt: new Date(),
+      assignedToUserId: assignedToUserId || ticket.assignedToUserId,
+      resolvedAt: status === 'resolved' || status === 'closed' ? new Date() : ticket.resolvedAt,
+    };
+
+    this.supportTickets.set(ticketId, updatedTicket);
+    return updatedTicket;
+  }
+
+  async addTicketMessage(ticketId: number, userId: number, message: string, isAdminReply: boolean = false): Promise<TicketMessage> {
+    const id = this.ticketMessageCounter++;
+    const ticketMessage: TicketMessage = {
+      id,
+      ticketId,
+      userId,
+      message,
+      isAdminReply,
+      createdAt: new Date(),
+    };
+    this.ticketMessages.set(id, ticketMessage);
+
+    // Update ticket's updatedAt timestamp
+    const ticket = this.supportTickets.get(ticketId);
+    if (ticket) {
+      this.supportTickets.set(ticketId, {
+        ...ticket,
+        updatedAt: new Date(),
+      });
+    }
+
+    return ticketMessage;
+  }
+
+  async getTicketMessages(ticketId: number): Promise<TicketMessageWithUsername[]> {
+    const messages = Array.from(this.ticketMessages.values())
+      .filter(message => message.ticketId === ticketId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    
+    // Add username information to each message
+    const messagesWithUsernames = await Promise.all(
+      messages.map(async (message) => {
+        const user = await this.getUser(message.userId);
+        return {
+          ...message,
+          username: user?.username || 'Unknown User'
+        };
+      })
+    );
+    
+    return messagesWithUsernames;
   }
 }
 

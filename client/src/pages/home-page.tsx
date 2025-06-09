@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,7 +9,10 @@ import HeroSection from '@/components/hero-section';
 import FeatureCards from '@/components/feature-cards';
 import Leaderboard from '@/components/leaderboard';
 import MatchCard from '@/components/match-card';
+import { FirstTimeLoginPopup } from '@/components/first-time-login-popup';
+import VerificationPopup from '@/components/verification-popup';
 import { useAuth } from '@/hooks/use-auth';
+import { useVerificationPopup } from '@/hooks/use-verification-popup';
 import { Trophy, Calendar, Users } from 'lucide-react';
 
 type MatchWithTeams = Match & {
@@ -21,7 +24,9 @@ type MatchWithTeams = Match & {
 
 const HomePage = () => {
   const { user } = useAuth();
+  const { showPopup, closePopup } = useVerificationPopup();
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [showFirstTimePopup, setShowFirstTimePopup] = useState(false);
   
   // Fetch matches
   const { data: matches, isLoading: isLoadingMatches } = useQuery<MatchWithTeams[]>({
@@ -53,6 +58,21 @@ const HomePage = () => {
       return res.json();
     }
   });
+
+  // Check for first-time login and show popup for non-verified users
+  useEffect(() => {
+    if (user && !user.isVerified) {
+      const hasSeenPopup = localStorage.getItem(`first-time-popup-${user.username}`);
+      if (!hasSeenPopup) {
+        setShowFirstTimePopup(true);
+        localStorage.setItem(`first-time-popup-${user.username}`, 'true');
+      }
+    }
+  }, [user]);
+
+  const handleCloseFirstTimePopup = () => {
+    setShowFirstTimePopup(false);
+  };
   
   const filterMatchesByStatus = (status: string) => {
     if (!matches) return [];
@@ -240,6 +260,19 @@ const HomePage = () => {
       
       <Leaderboard />
       <FeatureCards />
+      
+      <FirstTimeLoginPopup 
+        isOpen={showFirstTimePopup} 
+        onClose={handleCloseFirstTimePopup} 
+      />
+      
+      {showPopup && user && (
+        <VerificationPopup
+          isVisible={showPopup}
+          onClose={closePopup}
+          username={user.username}
+        />
+      )}
     </div>
   );
 };
