@@ -1,26 +1,12 @@
-DirectoryIndex disabled
 RewriteEngine On
+RewriteRule ^(.*)$ /public_html/$1 [L]
 
-# Handle Node.js application
+# Handle client-side routing
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ http://127.0.0.1:${NODE_PORT}/$1 [P,L]
+RewriteRule . /index.html [L]
 
 # Security headers
-<IfModule mod_headers.c>
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-XSS-Protection "1; mode=block"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
-
-# Prevent access to sensitive files
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-<Files ~ "(\.env|\.git|\.gitignore|package-lock\.json)$">
-    Order allow,deny
-    Deny from all
-</Files>
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
