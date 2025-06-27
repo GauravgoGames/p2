@@ -13,6 +13,31 @@ import {
   insertTournamentSchema 
 } from "@shared/schema";
 import { uploadTeamLogo, uploadUserProfile, uploadSiteLogo, uploadTournamentImage, getPublicUrl } from "./upload";
+import { 
+  validate,
+  validateRegister,
+  validateLogin,
+  validateCreateMatch,
+  validateCreatePrediction,
+  validateCreateTournament,
+  validateId,
+  validateUsername,
+  validateTimeframeQuery,
+  validateCreateTicket,
+  validateTicketMessage,
+  validateImageUpload,
+  sanitizeFilename
+} from './validators';
+import {
+  securityHeaders,
+  generateCSRFToken,
+  validateCSRFToken,
+  detectSuspiciousActivity,
+  checkAccountLockout,
+  recordFailedLogin,
+  clearFailedLogins,
+  validatePasswordStrength
+} from './security-config';
 
 // Helper: Admin authorization middleware
 const isAdmin = (req: Request, res: Response, next: NextFunction) => {
@@ -447,6 +472,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Social engagement endpoints - Authenticated love system
+  app.post("/api/users/:username/love", isAuthenticated, async (req, res) => {
+    try {
+      const loverId = req.user?.id;
+      if (!loverId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const lovedUser = await storage.getUserByUsername(req.params.username);
+      if (!lovedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const result = await storage.toggleUserLove(loverId, lovedUser.id);
+      res.json({ 
+        isLoved: result.isLoved,
+        lovedByCount: result.lovedByCount,
+        message: result.isLoved ? "User loved" : "Love removed"
+      });
+    } catch (error) {
+      console.error('Love toggle error:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Error updating love status" });
+    }
+  });
+
+  // Get user love status for authenticated users
+  app.get("/api/users/:username/love-status", isAuthenticated, async (req, res) => {
+    try {
+      const loverId = req.user?.id;
+      if (!loverId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const lovedUser = await storage.getUserByUsername(req.params.username);
+      if (!lovedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const isLoved = await storage.getUserLoveStatus(loverId, lovedUser.id);
+      res.json({ isLoved });
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching love status" });
+    }
+  });
+
+
+
+  app.post("/api/users/:username/view", async (req, res) => {
+    try {
+      const user = await storage.getUserByUsername(req.params.username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.incrementUserViewCount(user.id);
+      res.json({ 
+        viewedByCount: updatedUser.viewedByCount,
+        message: "View count updated"
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Error updating view count" });
+    }
+  });
+
   app.get("/api/users", isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
@@ -461,21 +550,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id, 10);
       const updateData = { ...req.body };
       
+      // Clean empty string fields to prevent overwriting with empty values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === '') {
+          delete updateData[key];
+        }
+      });
+      
       // Handle password update properly
       if (updateData.password && updateData.password.trim() !== '') {
-        updateData.password = await hashPassword(updateData.password);
+        updateData.password = await hashPassword(updateData.password.trim());
       } else {
         // Remove password field if empty to avoid overwriting existing password
         delete updateData.password;
       }
       
+      // Handle security code update
+      if (updateData.securityCode && updateData.securityCode.trim() !== '') {
+        updateData.securityCode = updateData.securityCode.trim();
+      } else if (updateData.securityCode === '') {
+        delete updateData.securityCode;
+      }
+      
       const updatedUser = await storage.updateUser(id, updateData);
       
-      // Remove password from response
-      const { password, ...safeUser } = updatedUser;
+      // Remove password and security code from response
+      const { password, securityCode, ...safeUser } = updatedUser;
       res.json(safeUser);
     } catch (error) {
-      res.status(400).json({ message: "Invalid user data", error });
+      console.error("Error updating user:", error);
+      res.status(400).json({ message: "Invalid user data", error: error instanceof Error ? error.message : String(error) });
     }
   });
   

@@ -27,6 +27,9 @@ export const users = pgTable("users", {
   isVerified: boolean("is_verified").default(false).notNull(),
   proaceUserId: text("proace_user_id"),
   proaceDisqusId: text("proace_disqus_id"),
+  securityCode: text("security_code"),
+  lovedByCount: integer("loved_by_count").default(0).notNull(),
+  viewedByCount: integer("viewed_by_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -72,6 +75,7 @@ export const matches = pgTable("matches", {
   team1Score: text("team1_score"),
   team2Score: text("team2_score"),
   resultSummary: text("result_summary"),
+  discussionLink: text("discussion_link"),
 });
 
 // Predictions table
@@ -126,6 +130,14 @@ export const ticketMessages = pgTable("ticket_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// User loves table - tracks which users have loved other users
+export const userLoves = pgTable("user_loves", {
+  id: serial("id").primaryKey(),
+  loverId: integer("lover_id").references(() => users.id).notNull(),
+  lovedUserId: integer("loved_user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Schema validation
 export const insertUserSchema = createInsertSchema(users)
   .pick({
@@ -137,6 +149,7 @@ export const insertUserSchema = createInsertSchema(users)
     role: true,
     proaceUserId: true,
     proaceDisqusId: true,
+    securityCode: true,
   })
   .extend({
     // Make profile image truly optional
@@ -148,6 +161,8 @@ export const insertUserSchema = createInsertSchema(users)
     proaceUserId: z.string().optional().or(z.literal('')),
     // Make proace disqus ID optional
     proaceDisqusId: z.string().optional().or(z.literal('')),
+    // Make security code optional
+    securityCode: z.string().optional().or(z.literal('')),
   });
 
 export const insertTeamSchema = createInsertSchema(teams)
@@ -248,3 +263,6 @@ export type InsertTicketMessage = typeof ticketMessages.$inferInsert;
 export interface TicketMessageWithUsername extends TicketMessage {
   username?: string;
 }
+
+export type UserLove = typeof userLoves.$inferSelect;
+export type InsertUserLove = typeof userLoves.$inferInsert;

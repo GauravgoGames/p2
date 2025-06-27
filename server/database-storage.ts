@@ -10,6 +10,9 @@ import {
   siteSettings,
   tournaments,
   tournamentTeams,
+  supportTickets,
+  ticketMessages,
+  userLoves,
   User, 
   InsertUser, 
   Team, 
@@ -21,9 +24,15 @@ import {
   Prediction, 
   InsertPrediction, 
   PointsLedgerEntry,
-  SiteSetting
+  SiteSetting,
+  SupportTicket,
+  TicketMessage,
+  TicketMessageWithUsername,
+  InsertTournament,
+  UserLove,
+  InsertUserLove
 } from "@shared/schema";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, asc, desc, sql, inArray } from "drizzle-orm";
 import { pool } from "./db";
 import { IStorage } from "./storage";
 
@@ -48,6 +57,8 @@ interface LeaderboardUser {
   points: number;
   correctPredictions: number;
   totalMatches: number;
+  isVerified?: boolean;
+  viewedByCount?: number;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -71,16 +82,18 @@ export class DatabaseStorage implements IStorage {
       const adminExists = await this.getUserByUsername('admin');
       
       if (!adminExists) {
-        // Seed admin user
+        // Seed admin user - must be verified by default
         await db.insert(users).values({
           username: 'admin',
-          password: '$2a$12$s9zUh8Xb3gFE9gCO3jaRAOyKjS.Zj5FJT8nXNw4SqBU5Nr7ZJVdIe', // plaintext: admin123
+          password: '$2b$12$hBo/ePR99DezMmEpbpB.R.2Q8zwvK5aWA28XTTEqSsfB2GSY3n6YG', // plaintext: admin123
           email: 'admin@proace.com',
           displayName: 'Administrator',
           role: 'admin',
-          points: 0
+          points: 0,
+          isVerified: true,
+          securityCode: 'ADMIN123'
         });
-        console.log('Admin user created successfully');
+        console.log('Admin user created successfully with verification');
       }
       
       // Check if teams exist
@@ -98,16 +111,16 @@ export class DatabaseStorage implements IStorage {
   
   private async seedTeams() {
     const teamNames = [
-      { name: 'India', logoUrl: '/assets/flags/india.svg' },
-      { name: 'Australia', logoUrl: '/assets/flags/australia.svg' },
-      { name: 'England', logoUrl: '/assets/flags/england.svg' },
-      { name: 'New Zealand', logoUrl: '/assets/flags/new-zealand.svg' },
-      { name: 'Pakistan', logoUrl: '/assets/flags/pakistan.svg' },
-      { name: 'South Africa', logoUrl: '/assets/flags/south-africa.svg' },
-      { name: 'West Indies', logoUrl: '/assets/flags/west-indies.svg' },
-      { name: 'Sri Lanka', logoUrl: '/assets/flags/sri-lanka.svg' },
-      { name: 'Bangladesh', logoUrl: '/assets/flags/bangladesh.svg' },
-      { name: 'Afghanistan', logoUrl: '/assets/flags/afghanistan.svg' }
+      { name: 'India', logoUrl: '/assets/flags/india.svg', isCustom: false },
+      { name: 'Australia', logoUrl: '/assets/flags/australia.svg', isCustom: false },
+      { name: 'England', logoUrl: '/assets/flags/england.svg', isCustom: false },
+      { name: 'New Zealand', logoUrl: '/assets/flags/new-zealand.svg', isCustom: false },
+      { name: 'Pakistan', logoUrl: '/assets/flags/pakistan.svg', isCustom: false },
+      { name: 'South Africa', logoUrl: '/assets/flags/south-africa.svg', isCustom: false },
+      { name: 'West Indies', logoUrl: '/assets/flags/west-indies.svg', isCustom: false },
+      { name: 'Sri Lanka', logoUrl: '/assets/flags/sri-lanka.svg', isCustom: false },
+      { name: 'Bangladesh', logoUrl: '/assets/flags/bangladesh.svg', isCustom: false },
+      { name: 'Afghanistan', logoUrl: '/assets/flags/afghanistan.svg', isCustom: false }
     ];
     
     for (const team of teamNames) {
@@ -149,6 +162,117 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedUser;
+  }
+
+  async updateUserVerification(id: number, isVerified: boolean): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ isVerified })
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error(`User with id ${id} not found`);
+    }
+    
+    return updatedUser;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getAllPredictions(): Promise<Prediction[]> {
+    return await db.select().from(predictions);
+  }
+
+  async getPredictionsForMatch(matchId: number): Promise<Prediction[]> {
+    return await db.select().from(predictions).where(eq(predictions.matchId, matchId));
+  }
+
+  async getTournamentLeaderboard(tournamentId: number, timeframe: string): Promise<LeaderboardUser[]> {
+    // Get all matches for this tournament
+    const tournamentMatches = await this.getMatchesByTournament(tournamentId);
+    const matchIds = tournamentMatches.map(match => match.id);
+    
+    if (matchIds.length === 0) {
+      return [];
+    }
+    
+    // Get all users and predictions for these matches
+    const allUsers = await this.getAllUsers();
+    const userMap: Map<number, LeaderboardUser> = new Map();
+    
+    // Initialize leaderboard users
+    allUsers.forEach(user => {
+      userMap.set(user.id, {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName || undefined,
+        profileImage: user.profileImage || undefined,
+        points: 0,
+        correctPredictions: 0,
+        totalMatches: 0,
+        isVerified: user.isVerified
+      });
+    });
+    
+    // Get predictions for tournament matches
+    const tournamentPredictions = [];
+    if (matchIds.length > 0) {
+      for (const matchId of matchIds) {
+        const matchPredictions = await db.select()
+          .from(predictions)
+          .where(eq(predictions.matchId, matchId));
+        tournamentPredictions.push(...matchPredictions);
+      }
+    }
+    
+    // Calculate statistics
+    for (const prediction of tournamentPredictions) {
+      const match = tournamentMatches.find(m => m.id === prediction.matchId);
+      if (!match || match.status !== 'completed') continue;
+      
+      const leaderboardUser = userMap.get(prediction.userId);
+      if (!leaderboardUser) continue;
+      
+      leaderboardUser.totalMatches++;
+      
+      // Add points for correct predictions
+      if (prediction.pointsEarned) {
+        leaderboardUser.points += prediction.pointsEarned;
+      }
+      
+      // Count correct predictions
+      if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
+        leaderboardUser.correctPredictions++;
+      }
+      
+      if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
+        leaderboardUser.correctPredictions++;
+      }
+    }
+    
+    // Sort by points and return
+    return Array.from(userMap.values())
+      .filter(user => user.totalMatches > 0)
+      .sort((a, b) => {
+        // First, sort by points
+        if (b.points !== a.points) {
+          return b.points - a.points;
+        }
+        
+        // If points are equal, sort by success ratio
+        const aRatio = a.totalMatches > 0 ? (a.correctPredictions / (a.totalMatches * 2)) : 0;
+        const bRatio = b.totalMatches > 0 ? (b.correctPredictions / (b.totalMatches * 2)) : 0;
+        
+        if (bRatio !== aRatio) {
+          return bRatio - aRatio;
+        }
+        
+        // If both points and ratio are equal, sort by total matches
+        return b.totalMatches - a.totalMatches;
+      });
   }
   
   async deleteUser(id: number): Promise<void> {
@@ -253,7 +377,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getMatches(status?: string): Promise<MatchWithTeams[]> {
-    let query = db.select().from(matches);
+    let query = db.select().from(matches) as any;
     
     if (status) {
       query = query.where(eq(matches.status, status as any));
@@ -263,7 +387,7 @@ export class DatabaseStorage implements IStorage {
     const matchesData = await query;
     
     // Sort matches by date (upcoming and ongoing first, then completed)
-    matchesData.sort((a, b) => {
+    matchesData.sort((a: any, b: any) => {
       // First by status (upcoming -> ongoing -> completed)
       const statusOrder: Record<string, number> = {
         'ongoing': 0,
@@ -288,7 +412,7 @@ export class DatabaseStorage implements IStorage {
       }
     });
     
-    return Promise.all(matchesData.map(match => this.populateMatchWithTeams(match)));
+    return Promise.all(matchesData.map((match: any) => this.populateMatchWithTeams(match)));
   }
   
   async updateMatch(id: number, matchData: Partial<Match>): Promise<MatchWithTeams> {
@@ -421,11 +545,13 @@ export class DatabaseStorage implements IStorage {
       userMap.set(user.id, {
         id: user.id,
         username: user.username,
-        displayName: user.displayName,
-        profileImage: user.profileImage,
+        displayName: user.displayName || undefined,
+        profileImage: user.profileImage || undefined,
         points: user.points || 0,
         correctPredictions: 0,
-        totalMatches: 0
+        totalMatches: 0,
+        isVerified: user.isVerified,
+        viewedByCount: user.viewedByCount || 0
       });
     });
     
@@ -455,8 +581,7 @@ export class DatabaseStorage implements IStorage {
       
       // Add filtering by createdAt
       predictionsQuery = predictionsQuery.where(
-        // Assuming createdAt is stored as ISO string
-        (predictions.createdAt as any) >= startDate.toISOString()
+        sql`${predictions.createdAt} >= ${startDate.toISOString()}`
       );
     }
     
@@ -483,13 +608,27 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Sort by points (descending) and then by correct predictions (descending)
+    // Sort by three-tier criteria:
+    // 1. Points (higher is better)
+    // 2. Success ratio (higher is better)
+    // 3. Total matches (higher is better)
     return Array.from(userMap.values())
       .sort((a, b) => {
+        // First, sort by points
         if (b.points !== a.points) {
           return b.points - a.points;
         }
-        return b.correctPredictions - a.correctPredictions;
+        
+        // If points are equal, sort by success ratio
+        const aRatio = a.totalMatches > 0 ? (a.correctPredictions / (a.totalMatches * 2)) : 0;
+        const bRatio = b.totalMatches > 0 ? (b.correctPredictions / (b.totalMatches * 2)) : 0;
+        
+        if (bRatio !== aRatio) {
+          return bRatio - aRatio;
+        }
+        
+        // If both points and ratio are equal, sort by total matches
+        return b.totalMatches - a.totalMatches;
       });
   }
   
@@ -506,8 +645,11 @@ export class DatabaseStorage implements IStorage {
       .where(eq(predictions.matchId, matchId));
     
     for (const prediction of matchPredictions) {
+      let totalPoints = 0;
+      
       // Points for correct toss winner prediction
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
+        totalPoints += 1;
         await this.addPointsToUser(
           prediction.userId, 
           1, 
@@ -518,6 +660,7 @@ export class DatabaseStorage implements IStorage {
       
       // Points for correct match winner prediction
       if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
+        totalPoints += 1;
         await this.addPointsToUser(
           prediction.userId, 
           1, 
@@ -525,6 +668,11 @@ export class DatabaseStorage implements IStorage {
           'Correct match winner prediction'
         );
       }
+      
+      // Update the prediction with earned points
+      await db.update(predictions)
+        .set({ pointsEarned: totalPoints })
+        .where(eq(predictions.id, prediction.id));
     }
   }
   
@@ -632,7 +780,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTournament(id: number, tournamentData: Partial<Tournament>): Promise<Tournament> {
     const [updated] = await db.update(tournaments)
-      .set({ ...tournamentData, updatedAt: new Date() })
+      .set(tournamentData)
       .where(eq(tournaments.id, id))
       .returning();
     return updated;
@@ -655,33 +803,187 @@ export class DatabaseStorage implements IStorage {
     return matchesWithTeams;
   }
 
-  // Tournament-Team relationship methods
-  async addTeamToTournament(tournamentId: number, teamId: number): Promise<void> {
-    await db.insert(tournamentTeams)
-      .values({ tournamentId, teamId })
-      .onConflictDoNothing();
+  // Support ticket methods
+  async createSupportTicket(userId: number, subject: string, priority: string = 'medium'): Promise<SupportTicket> {
+    const [ticket] = await db.insert(supportTickets).values({
+      userId,
+      subject,
+      priority: priority as 'low' | 'medium' | 'high',
+      status: 'open'
+    }).returning();
+    return ticket;
   }
 
-  async removeTeamFromTournament(tournamentId: number, teamId: number): Promise<void> {
-    await db.delete(tournamentTeams)
-      .where(and(
-        eq(tournamentTeams.tournamentId, tournamentId),
-        eq(tournamentTeams.teamId, teamId)
-      ));
+  async getUserTickets(userId: number): Promise<SupportTicket[]> {
+    return await db.select().from(supportTickets).where(eq(supportTickets.userId, userId));
   }
 
-  async getTeamsByTournament(tournamentId: number): Promise<Team[]> {
-    const result = await db.select({
-      id: teams.id,
-      name: teams.name,
-      logoUrl: teams.logoUrl,
-      isCustom: teams.isCustom
-    })
-    .from(tournamentTeams)
-    .innerJoin(teams, eq(tournamentTeams.teamId, teams.id))
-    .where(eq(tournamentTeams.tournamentId, tournamentId));
+  async getAllTickets(): Promise<SupportTicket[]> {
+    return await db.select().from(supportTickets).orderBy(desc(supportTickets.createdAt));
+  }
+
+  async getTicketById(ticketId: number): Promise<SupportTicket | undefined> {
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, ticketId));
+    return ticket;
+  }
+
+  async updateTicketStatus(ticketId: number, status: string, assignedToUserId?: number): Promise<SupportTicket> {
+    const updateData: any = { status, updatedAt: new Date() };
+    if (assignedToUserId !== undefined) {
+      updateData.assignedToUserId = assignedToUserId;
+    }
     
-    return result;
+    const [updatedTicket] = await db.update(supportTickets)
+      .set(updateData)
+      .where(eq(supportTickets.id, ticketId))
+      .returning();
+    
+    if (!updatedTicket) {
+      throw new Error('Ticket not found');
+    }
+    
+    return updatedTicket;
+  }
+
+  async addTicketMessage(ticketId: number, userId: number, message: string, isAdminReply: boolean = false): Promise<TicketMessage> {
+    const [ticketMessage] = await db.insert(ticketMessages).values({
+      ticketId,
+      userId,
+      message,
+      isAdminReply
+    }).returning();
+    return ticketMessage;
+  }
+
+  async getTicketMessages(ticketId: number): Promise<TicketMessageWithUsername[]> {
+    const messages = await db.select({
+      id: ticketMessages.id,
+      ticketId: ticketMessages.ticketId,
+      userId: ticketMessages.userId,
+      message: ticketMessages.message,
+      isAdminReply: ticketMessages.isAdminReply,
+      createdAt: ticketMessages.createdAt,
+      username: users.username,
+      displayName: users.displayName
+    })
+    .from(ticketMessages)
+    .innerJoin(users, eq(ticketMessages.userId, users.id))
+    .where(eq(ticketMessages.ticketId, ticketId))
+    .orderBy(asc(ticketMessages.createdAt));
+    
+    return messages;
+  }
+
+  // Social engagement methods
+  async incrementUserLoveCount(userId: number): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ lovedByCount: sql`${users.lovedByCount} + 1` })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error('User not found');
+    }
+    
+    return updatedUser;
+  }
+
+  async incrementUserViewCount(userId: number): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ viewedByCount: sql`${users.viewedByCount} + 1` })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error('User not found');
+    }
+    
+    return updatedUser;
+  }
+
+  // Authenticated love system methods
+  async toggleUserLove(loverId: number, lovedUserId: number): Promise<{ isLoved: boolean; lovedByCount: number }> {
+    if (loverId === lovedUserId) {
+      throw new Error('Users cannot love themselves');
+    }
+
+    // Check if love relationship already exists
+    const existingLove = await db.select()
+      .from(userLoves)
+      .where(and(eq(userLoves.loverId, loverId), eq(userLoves.lovedUserId, lovedUserId)))
+      .limit(1);
+
+    let isLoved: boolean;
+
+    if (existingLove.length > 0) {
+      // Remove love relationship
+      await db.delete(userLoves)
+        .where(and(eq(userLoves.loverId, loverId), eq(userLoves.lovedUserId, lovedUserId)));
+      
+      // Safely decrement love count (ensure it doesn't go below 0)
+      await db.update(users)
+        .set({ lovedByCount: sql`GREATEST(${users.lovedByCount} - 1, 0)` })
+        .where(eq(users.id, lovedUserId));
+      
+      isLoved = false;
+    } else {
+      // Create love relationship
+      await db.insert(userLoves)
+        .values({ loverId, lovedUserId });
+      
+      // Increment love count
+      await db.update(users)
+        .set({ lovedByCount: sql`${users.lovedByCount} + 1` })
+        .where(eq(users.id, lovedUserId));
+      
+      isLoved = true;
+    }
+
+    // Get updated love count
+    const user = await db.select({ lovedByCount: users.lovedByCount })
+      .from(users)
+      .where(eq(users.id, lovedUserId))
+      .limit(1);
+
+    return {
+      isLoved,
+      lovedByCount: user[0]?.lovedByCount || 0
+    };
+  }
+
+  async getUserLoveStatus(loverId: number, lovedUserId: number): Promise<boolean> {
+    const existingLove = await db.select()
+      .from(userLoves)
+      .where(and(eq(userLoves.loverId, loverId), eq(userLoves.lovedUserId, lovedUserId)))
+      .limit(1);
+
+    return existingLove.length > 0;
+  }
+
+  async getUserLovers(userId: number): Promise<User[]> {
+    const lovers = await db.select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      profileImage: users.profileImage,
+      isVerified: users.isVerified,
+      role: users.role,
+      points: users.points,
+      email: users.email,
+      password: users.password,
+      proaceUserId: users.proaceUserId,
+      proaceDisqusId: users.proaceDisqusId,
+      securityCode: users.securityCode,
+      lovedByCount: users.lovedByCount,
+      viewedByCount: users.viewedByCount,
+      createdAt: users.createdAt
+    })
+    .from(userLoves)
+    .innerJoin(users, eq(userLoves.loverId, users.id))
+    .where(eq(userLoves.lovedUserId, userId))
+    .orderBy(desc(userLoves.createdAt));
+
+    return lovers;
   }
 }
 

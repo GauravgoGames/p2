@@ -6,8 +6,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, CheckCircle, XCircle, Trophy, Clock, Activity } from 'lucide-react';
-import { format, differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
+import { MapPin, CheckCircle, XCircle, Trophy, Clock, Activity, MessageSquare, Share2, Link2 } from 'lucide-react';
+import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
+import { format, differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays, addHours, subHours } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import VoteBand from './vote-band';
@@ -18,6 +19,7 @@ interface MatchCardProps {
     team2: Team;
     tossWinner?: Team;
     matchWinner?: Team;
+    discussionLink?: string | null;
   };
   userPrediction?: Prediction;
 }
@@ -34,6 +36,52 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
 
   const [countdown, setCountdown] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [showShareMenu, setShowShareMenu] = useState<boolean>(false);
+
+  // Check if discussion is active (24hrs before match to 24hrs after result)
+  const isDiscussionActive = () => {
+    const now = new Date();
+    const matchDate = new Date(match.matchDate);
+    const discussionStartTime = subHours(matchDate, 24); // 24 hours before match
+    
+    // For completed matches, allow discussion for 24 hours after the match
+    if (match.status === 'completed' || match.status === 'tie' || match.status === 'void') {
+      const discussionEndTime = addHours(matchDate, 48); // 24 hours after match (assuming match duration)
+      return now >= discussionStartTime && now <= discussionEndTime;
+    }
+    
+    // For upcoming/ongoing matches, allow discussion from 24 hours before
+    return now >= discussionStartTime;
+  };
+
+  // Social sharing functions
+  const shareMatch = (platform: string) => {
+    const matchTitle = `${match.team1.name} vs ${match.team2.name}`;
+    const matchUrl = window.location.href;
+    const shareText = `Check out this match: ${matchTitle} on CricProAce!`;
+    
+    switch (platform) {
+      case 'whatsapp':
+        window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + matchUrl)}`, '_blank');
+        break;
+      case 'instagram':
+        // Instagram doesn't have direct URL sharing, so we copy the link
+        navigator.clipboard.writeText(matchUrl);
+        toast({
+          title: "Link copied!",
+          description: "Share this match on Instagram by pasting the link",
+        });
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(matchUrl);
+        toast({
+          title: "Link copied!",
+          description: "Match link has been copied to clipboard",
+        });
+        break;
+    }
+    setShowShareMenu(false);
+  };
 
   const predictionMutation = useMutation({
     mutationFn: async () => {
@@ -74,9 +122,9 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
       case 'completed':
         return 'completed';
       case 'tie':
-        return 'tie';
+        return 'warning';
       case 'void':
-        return 'void';
+        return 'destructive';
       default:
         return 'default';
     }
@@ -225,8 +273,48 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         {/* Tournament and Date Section - Rearranged to prevent overlap */}
         <div className="flex flex-col gap-2 mb-6 mt-8">
           <div className="flex justify-between items-center">
-            <div className="text-sm font-medium text-neutral-700">{match.tournamentName}</div>
-            <div className="text-sm text-neutral-700">{formatMatchTime(match.matchDate)}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-neutral-700">{match.tournamentName}</div>
+              <div className="text-sm text-neutral-700">{formatMatchTime(match.matchDate)}</div>
+            </div>
+            
+            {/* Share Button */}
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2"
+                onClick={() => setShowShareMenu(!showShareMenu)}
+              >
+                <Share2 className="h-4 w-4" />
+              </Button>
+              
+              {showShareMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                    onClick={() => shareMatch('whatsapp')}
+                  >
+                    <FaWhatsapp className="h-4 w-4" />
+                    Share on WhatsApp
+                  </button>
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                    onClick={() => shareMatch('instagram')}
+                  >
+                    <FaInstagram className="h-4 w-4" />
+                    Share on Instagram
+                  </button>
+                  <button
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 border-t"
+                    onClick={() => shareMatch('copy')}
+                  >
+                    <Link2 className="h-4 w-4" />
+                    Copy Link
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {match.status === 'upcoming' && (
@@ -237,13 +325,13 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           )}
         </div>
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div className="team-display flex flex-col items-center relative">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
               <img 
                 src={match.team1.logoUrl || 'https://via.placeholder.com/80'} 
                 alt={match.team1.name} 
-                className="w-16 h-16 object-contain"
+                className="w-14 h-14 object-contain"
               />
             </div>
             <div className="font-semibold text-gray-800">{match.team1.name}</div>
@@ -255,6 +343,11 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             {match.tossWinnerId === match.team1Id && (
               <div className="absolute -top-1 -right-1 bg-yellow-400 text-xs px-1.5 py-0.5 rounded-full text-white font-bold shadow-md">
                 Toss
+              </div>
+            )}
+            {match.matchWinnerId === match.team1Id && (
+              <div className="absolute -top-1 -left-1 bg-green-500 text-xs px-1.5 py-0.5 rounded-full text-white font-bold shadow-md">
+                Match
               </div>
             )}
           </div>
@@ -293,11 +386,11 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           </div>
 
           <div className="team-display flex flex-col items-center relative">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center mb-2 border-2 border-gray-100 overflow-hidden shadow-lg">
               <img 
                 src={match.team2.logoUrl || 'https://via.placeholder.com/80'} 
                 alt={match.team2.name} 
-                className="w-16 h-16 object-contain"
+                className="w-14 h-14 object-contain"
               />
             </div>
             <div className="font-semibold text-gray-800">{match.team2.name}</div>
@@ -309,6 +402,11 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             {match.tossWinnerId === match.team2Id && (
               <div className="absolute -top-1 -right-1 bg-yellow-400 text-xs px-1.5 py-0.5 rounded-full text-white font-bold shadow-md">
                 Toss
+              </div>
+            )}
+            {match.matchWinnerId === match.team2Id && (
+              <div className="absolute -top-1 -left-1 bg-green-500 text-xs px-1.5 py-0.5 rounded-full text-white font-bold shadow-md">
+                Match
               </div>
             )}
           </div>
@@ -333,12 +431,12 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         )}
 
         {match.status === 'completed' || match.status === 'tie' || match.status === 'void' ? (
-          <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
             {/* Match Result Summary */}
             {match.status !== 'void' && (
-              <div className="text-center mb-4">
+              <div className="text-center mb-3">
                 <div className="text-sm text-neutral-500 mb-1">Match Result</div>
-                <div className="font-bold text-lg">{match.resultSummary || 'Match ' + match.status}</div>
+                <div className="font-bold text-base">{match.resultSummary || 'Match ' + match.status}</div>
               </div>
             )}
 
@@ -449,8 +547,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           </div>
         ) : (
           <div className="predictions-container">
-            <div className="bg-gray-50 p-4 rounded-lg mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <div className="bg-gray-50 p-3 rounded-lg mb-3">
+              <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                 <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
                   <span className="text-xs text-white font-bold">1</span>
                 </div>
@@ -500,8 +598,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                 <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
                   <span className="text-xs text-white font-bold">2</span>
                 </div>
@@ -554,13 +652,29 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         )}
       </div>
 
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-4 flex justify-between items-center rounded-b-xl border-t border-gray-200">
-        <div className="text-sm font-medium text-gray-700 flex items-center">
-          <div className="bg-white p-1 rounded-full shadow-sm mr-2">
-            <MapPin className="h-4 w-4 text-primary" />
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-3 rounded-b-xl border-t border-gray-200">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <div className="text-sm font-medium text-gray-700 flex items-center min-w-0">
+              <div className="bg-white p-1 rounded-full shadow-sm mr-2 flex-shrink-0">
+                <MapPin className="h-4 w-4 text-primary" />
+              </div>
+              <span className="truncate" title={match.location}>{match.location}</span>
+            </div>
+
+            {/* Discuss Now Button */}
+            {match.discussionLink && isDiscussionActive() && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open(match.discussionLink!, '_blank')}
+                className="flex items-center gap-1 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border-purple-300 text-purple-700 transition-all duration-200"
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>Discuss Now</span>
+              </Button>
+            )}
           </div>
-          {match.location}
-        </div>
 
         {match.status === 'upcoming' ? (
           user ? (
@@ -608,6 +722,7 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

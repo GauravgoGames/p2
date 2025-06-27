@@ -1,16 +1,19 @@
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Crown, Medal, Search, Trophy, Users, Award } from 'lucide-react';
+import { Crown, Medal, Search, Trophy, Users, Award, Heart, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartLegendContent } from '@/components/ui/chart';
+import { queryClient } from '@/lib/queryClient';
+import { useLocation } from 'wouter';
+import { useToast } from '@/hooks/use-toast';
 
 interface LeaderboardUser {
   id: number;
@@ -21,6 +24,7 @@ interface LeaderboardUser {
   correctPredictions: number;
   totalMatches: number;
   isVerified: boolean;
+  viewedByCount?: number;
 }
 
 interface Tournament {
@@ -35,10 +39,73 @@ interface Tournament {
 
 const LeaderboardPage = () => {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [timeframe, setTimeframe] = useState('weekly');
   const [selectedTournament, setSelectedTournament] = useState<string>('overall');
   const [isMobile, setIsMobile] = useState(false);
+  const [lovedUsers, setLovedUsers] = useState<Set<number>>(new Set());
+  const { toast } = useToast();
+
+  // Love mutation with authentication
+  const loveMutation = useMutation({
+    mutationFn: async (username: string) => {
+      const res = await fetch(`/api/users/${username}/love`, { 
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Please log in to love users');
+        }
+        throw new Error('Failed to update love status');
+      }
+      return res.json();
+    },
+    onSuccess: (data, username) => {
+      const userEntry = filteredUsers().find(u => u.username === username);
+      if (userEntry) {
+        if (data.isLoved) {
+          setLovedUsers(prev => new Set([...Array.from(prev), userEntry.id]));
+        } else {
+          setLovedUsers(prev => {
+            const newSet = new Set(Array.from(prev));
+            newSet.delete(userEntry.id);
+            return newSet;
+          });
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/leaderboard'] });
+      toast({
+        title: data.isLoved ? "Mark Loved" : "Mark Unloved",
+        description: data.isLoved ? "You have loved this user." : "You have unloved this user.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // View mutation
+  const viewMutation = useMutation({
+    mutationFn: async (username: string) => {
+      const res = await fetch(`/api/users/${username}/view`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to track view');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/leaderboard'] });
+    }
+  });
+
+  const handleViewProfile = (username: string) => {
+    viewMutation.mutate(username);
+    setLocation(`/users/${username}`);
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -72,6 +139,35 @@ const LeaderboardPage = () => {
       return res.json();
     }
   });
+
+  // Load love status for all users if authenticated
+  useEffect(() => {
+    if (!user || !leaderboard) return;
+    
+    const loadLoveStatuses = async () => {
+      const lovedUserIds: number[] = [];
+      
+      try {
+        for (const userData of leaderboard) {
+          const res = await fetch(`/api/users/${userData.username}/love-status`, {
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const { isLoved } = await res.json();
+            if (isLoved) {
+              lovedUserIds.push(userData.id);
+            }
+          }
+        }
+        
+        setLovedUsers(new Set(lovedUserIds));
+      } catch (error) {
+        // Ignore errors during love status loading
+      }
+    };
+
+    loadLoveStatuses();
+  }, [user, leaderboard]);
 
   const filteredUsers = () => {
     if (!leaderboard) return [];
@@ -165,9 +261,10 @@ const LeaderboardPage = () => {
               <tr className="text-left text-sm font-medium text-neutral-500 border-b border-neutral-200">
                 <th className="pb-3 pl-4">Rank</th>
                 <th className="pb-3">Player</th>
-                <th className="pb-3">Matches</th>
-                <th className="pb-3">Predictions Stats</th>
-                <th className="pb-3 pr-4">Points & Success Rate</th>
+                <th className="pb-3">Stats</th>
+                <th className="pb-3">Accuracy</th>
+                <th className="pb-3">Views</th>
+                <th className="pb-3 pr-4">Points</th>
               </tr>
             </thead>
             <tbody>
@@ -191,49 +288,63 @@ const LeaderboardPage = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex items-center gap-2">
-                        <a 
-                          href={`/users/${entry.username}`}
-                          className="font-medium hover:text-primary transition-colors"
+                        <button 
+                          onClick={() => handleViewProfile(entry.username)}
+                          className="font-medium hover:text-primary transition-colors text-left"
                         >
                           {entry.displayName || entry.username}
-                        </a>
-                        <a
-                          href={`/users/${entry.username}`}
-                          className="p-1 hover:bg-neutral-100 rounded-full transition-colors"
-                          title="View Profile"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-500 hover:text-primary">
-                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
-                        </a>
+                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => loveMutation.mutate(entry.username)}
+                            disabled={loveMutation.isPending}
+                            className={`p-1 hover:bg-pink-50 rounded-full transition-colors ${
+                              lovedUsers.has(entry.id) ? 'text-red-500' : 'text-neutral-500 hover:text-red-500'
+                            }`}
+                            title="Love this player"
+                          >
+                            <Heart className={`h-4 w-4 ${lovedUsers.has(entry.id) ? 'fill-current' : ''}`} />
+                          </button>
+                          <button
+                            onClick={() => handleViewProfile(entry.username)}
+                            className="p-1 hover:bg-blue-50 rounded-full transition-colors text-neutral-500 hover:text-blue-500"
+                            title="View Profile"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       {entry.id === user?.id && (
                         <span className="ml-2 text-xs bg-primary text-white px-2 py-1 rounded">You</span>
                       )}
                     </div>
                   </td>
-                  <td className="py-4">{entry.totalMatches}</td>
                   <td className="py-4">
                     <div className="flex flex-col">
-                      <span className="font-medium">{entry.correctPredictions}</span>
-                      <div className="flex flex-col gap-1 mt-1">
-                        <span className="text-xs text-neutral-500">
-                          Match Winner: {Math.floor(entry.correctPredictions/2)}/{entry.totalMatches}
-                        </span>
-                        <span className="text-xs text-neutral-500">
-                          Toss Winner: {Math.ceil(entry.correctPredictions/2)}/{entry.totalMatches}
-                        </span>
-                      </div>
+                      <span className="text-sm font-medium">{entry.totalMatches} matches</span>
+                      <span className="text-xs text-neutral-500">{entry.correctPredictions} correct</span>
+                    </div>
+                  </td>
+                  <td className="py-4">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {entry.totalMatches > 0 ? ((entry.correctPredictions/(entry.totalMatches*2))*100).toFixed(0) : 0}%
+                      </span>
+                      <span className="text-xs text-neutral-500">accuracy</span>
+                    </div>
+                  </td>
+                  <td className="py-4">
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="flex items-center gap-1 text-neutral-600">
+                        <Eye className="h-3 w-3" />
+                        {entry.viewedByCount || 0}
+                      </span>
                     </div>
                   </td>
                   <td className="py-4 pr-4">
-                    <Badge variant="outline" className="font-semibold text-primary border-primary mb-2">
+                    <Badge variant="outline" className="font-semibold text-primary border-primary">
                       {entry.points} pts
                     </Badge>
-                    <div className="text-xs text-neutral-500">
-                      Success Rate: {((entry.correctPredictions/(entry.totalMatches*2))*100).toFixed(1)}%
-                    </div>
                   </td>
                 </tr>
               ))}

@@ -1,10 +1,11 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
+import ForgotPassword from "@/pages/forgot-password";
 import ProfilePage from '@/pages/profile-page';
 import ProfileUpdatePage from '@/pages/profile-update-page';
 import UserProfilePage from "@/pages/user-profile-page";
@@ -27,17 +28,27 @@ import AdminSupportPage from "@/pages/admin-support-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
+import EmbedMatch from "@/pages/embed-match";
+import EmbedLeaderboard from "@/pages/embed-leaderboard";
 import { AuthProvider } from "./hooks/use-auth";
 import VerificationPopup from "@/components/verification-popup";
 
 function Router() {
+  const location = useLocation();
+  const hideNavbarRoutes = ["/auth", "/forgot-password", "/embed/match", "/embed/leaderboard"];
+  const shouldHideNavbar = hideNavbarRoutes.includes(location[0]);
+  const isEmbedRoute = location[0].startsWith("/embed/");
+
   return (
     <>
-      <Navbar />
-      <main className="min-h-screen">
+      {!shouldHideNavbar && <Navbar />}
+      <main className={shouldHideNavbar ? "" : "min-h-screen"}>
         <Switch>
           <Route path="/" component={HomePage} />
           <Route path="/auth" component={AuthPage} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/embed/match" component={EmbedMatch} />
+          <Route path="/embed/leaderboard" component={EmbedLeaderboard} />
           <Route path="/predict" component={PredictNowPage} />
           <Route path="/tournaments" component={TournamentsPage} />
           <Route path="/tournaments/:id" component={TournamentDetailPage} />
@@ -59,7 +70,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
-      <Footer />
+      {!isEmbedRoute && <Footer />}
     </>
   );
 }

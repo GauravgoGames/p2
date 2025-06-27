@@ -75,6 +75,7 @@ const createUserSchema = z.object({
   displayName: z.string().optional(),
   email: z.union([z.string().email(), z.literal('')]).optional(),
   role: z.enum(['user', 'admin']).default('user'),
+  securityCode: z.string().optional(),
 });
 
 // User update form schema
@@ -86,6 +87,7 @@ const updateUserSchema = z.object({
   password: z.string().optional(), // Made completely optional
   proaceUserId: z.string().optional(),
   isVerified: z.boolean(),
+  securityCode: z.string().optional(),
 });
 
 const ManageUsers = () => {
@@ -117,6 +119,7 @@ const ManageUsers = () => {
       displayName: '',
       email: '',
       role: 'user',
+      securityCode: '',
     },
   });
   
@@ -131,6 +134,7 @@ const ManageUsers = () => {
       password: '',
       proaceUserId: '',
       isVerified: false,
+      securityCode: '',
     },
   });
   
@@ -138,9 +142,7 @@ const ManageUsers = () => {
   const createUserMutation = useMutation({
     mutationFn: async (data: z.infer<typeof createUserSchema>) => {
       // Add admin creation header to prevent auto-login
-      const res = await apiRequest('POST', '/api/register', data, 
-        'x-admin-creation: true'
-      );
+      const res = await apiRequest('POST', '/api/register', data);
       return res.json();
     },
     onSuccess: () => {
@@ -251,6 +253,7 @@ const ManageUsers = () => {
       password: '', // Empty for optional password change
       proaceUserId: user.proaceUserId || '',
       isVerified: user.isVerified || false,
+      securityCode: user.securityCode || '',
     });
     setEditDialogOpen(true);
   };
@@ -608,6 +611,20 @@ const ManageUsers = () => {
                 )}
               />
               
+              <FormField
+                control={createUserForm.control}
+                name="securityCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Security Code (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter security code for password recovery" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -758,6 +775,20 @@ const ManageUsers = () => {
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editUserForm.control}
+                  name="securityCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Security Code (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter security code for password recovery" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

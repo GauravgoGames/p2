@@ -1,10 +1,70 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import mongoSanitize from "express-mongo-sanitize";
+import hpp from "hpp";
+import cors from "cors";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for development, can be configured properly for production
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.ALLOWED_ORIGINS?.split(',') || true
+    : true,
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Increased to 1000 requests per windowMs for better user experience
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Increased to 10 login attempts per windowMs
+  message: 'Too many login attempts, please try again later.',
+  skipSuccessfulRequests: true,
+});
+
+const applyRateLimiters = (req: Request, res: Response, next: NextFunction) => {
+  // Skip rate limiting for static assets and non-API routes
+  if (!req.path.startsWith('/api/')) {
+    return next();
+  }
+  
+  if (req.path === '/api/login' || req.path === '/api/register') {
+    authLimiter(req, res, next);
+  } else {
+    generalLimiter(req, res, next);
+  }
+};
+
+app.use(applyRateLimiters);
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Prevent parameter pollution
+app.use(hpp());
+
+// Body parsing middleware with size limits
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();

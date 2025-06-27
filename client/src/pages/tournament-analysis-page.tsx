@@ -71,6 +71,7 @@ const TournamentAnalysisPage = () => {
   const { tournamentId: urlTournamentId } = useParams();
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(urlTournamentId || null);
   const [visibleMatches, setVisibleMatches] = useState([10]); // Default to show 10 matches
+  const [visibleUsers, setVisibleUsers] = useState([10]); // Default to show 10 users
 
   // Query for all tournaments
   const { data: tournaments } = useQuery<Tournament[]>({
@@ -240,28 +241,84 @@ const TournamentAnalysisPage = () => {
           <CardTitle>User-wise Match Prediction Analysis</CardTitle>
           <p className="text-sm text-neutral-600">Complete prediction matrix showing each user's predictions across all matches</p>
           
-          {/* Matches Slider Control */}
+          {/* Matches Display Control */}
           {matchesAnalysis && matchesAnalysis.length > 5 && (
-            <div className="mt-4 space-y-2">
-              <Label className="text-sm font-medium">
-                Number of matches to display: {visibleMatches[0]} of {matchesAnalysis.length}
-              </Label>
-              <Slider
-                value={visibleMatches}
-                onValueChange={setVisibleMatches}
-                max={Math.min(matchesAnalysis.length, 100)}
-                min={5}
-                step={5}
-                className="w-full max-w-sm"
-              />
-              <p className="text-xs text-neutral-500">
-                Adjust slider to view more matches (up to {Math.min(matchesAnalysis.length, 100)} matches)
-              </p>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Displaying: {visibleMatches[0]} of {matchesAnalysis.length} matches
+                </Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setVisibleMatches([Math.max(5, visibleMatches[0] - 10)])}
+                    disabled={visibleMatches[0] <= 5}
+                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    -10
+                  </button>
+                  <button
+                    onClick={() => setVisibleMatches([Math.max(5, visibleMatches[0] - 5)])}
+                    disabled={visibleMatches[0] <= 5}
+                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    -5
+                  </button>
+                  <span className="px-3 py-1 text-sm font-semibold bg-blue-50 text-blue-700 rounded">
+                    {visibleMatches[0]}
+                  </span>
+                  <button
+                    onClick={() => setVisibleMatches([Math.min(Math.min(matchesAnalysis.length, 200), visibleMatches[0] + 5)])}
+                    disabled={visibleMatches[0] >= Math.min(matchesAnalysis.length, 200)}
+                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    +5
+                  </button>
+                  <button
+                    onClick={() => setVisibleMatches([Math.min(Math.min(matchesAnalysis.length, 200), visibleMatches[0] + 10)])}
+                    disabled={visibleMatches[0] >= Math.min(matchesAnalysis.length, 200)}
+                    className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    +10
+                  </button>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => setVisibleMatches([10])}
+                  className={`px-3 py-1 text-xs rounded ${visibleMatches[0] === 10 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  10
+                </button>
+                <button
+                  onClick={() => setVisibleMatches([25])}
+                  className={`px-3 py-1 text-xs rounded ${visibleMatches[0] === 25 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  25
+                </button>
+                <button
+                  onClick={() => setVisibleMatches([50])}
+                  className={`px-3 py-1 text-xs rounded ${visibleMatches[0] === 50 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  50
+                </button>
+                <button
+                  onClick={() => setVisibleMatches([100])}
+                  className={`px-3 py-1 text-xs rounded ${visibleMatches[0] === 100 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  100
+                </button>
+                <button
+                  onClick={() => setVisibleMatches([Math.min(matchesAnalysis.length, 200)])}
+                  className={`px-3 py-1 text-xs rounded ${visibleMatches[0] === Math.min(matchesAnalysis.length, 200) ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  All ({Math.min(matchesAnalysis.length, 200)})
+                </button>
+              </div>
             </div>
           )}
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+        <CardContent className="flex">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-neutral-100 border-b-2 border-neutral-300">
@@ -336,7 +393,7 @@ const TournamentAnalysisPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {analysisData?.map((user) => {
+                {analysisData?.slice(0, visibleUsers[0]).map((user) => {
                   // Create a map to find user's predictions for each match
                   const userMatchPredictions = new Map();
                   matchesAnalysis?.forEach(match => {
@@ -439,6 +496,92 @@ const TournamentAnalysisPage = () => {
               </tbody>
             </table>
           </div>
+          
+          {/* Users Display Control - Right Side */}
+          {analysisData && analysisData.length > 5 && (
+            <div className="ml-4 pl-4 border-l border-neutral-200 min-w-[160px]">
+              <div className="sticky top-0 space-y-3">
+                <Label className="text-sm font-medium text-center">
+                  Displaying: {visibleUsers[0]} of {analysisData.length} users
+                </Label>
+                
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-center gap-1">
+                    <button
+                      onClick={() => setVisibleUsers([Math.max(5, visibleUsers[0] - 10)])}
+                      disabled={visibleUsers[0] <= 5}
+                      className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      -10
+                    </button>
+                    <button
+                      onClick={() => setVisibleUsers([Math.max(5, visibleUsers[0] - 5)])}
+                      disabled={visibleUsers[0] <= 5}
+                      className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      -5
+                    </button>
+                  </div>
+                  
+                  <div className="text-center">
+                    <span className="px-3 py-1 text-sm font-semibold bg-blue-50 text-blue-700 rounded">
+                      {visibleUsers[0]}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-center gap-1">
+                    <button
+                      onClick={() => setVisibleUsers([Math.min(Math.min(analysisData.length, 200), visibleUsers[0] + 5)])}
+                      disabled={visibleUsers[0] >= Math.min(analysisData.length, 200)}
+                      className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      +5
+                    </button>
+                    <button
+                      onClick={() => setVisibleUsers([Math.min(Math.min(analysisData.length, 200), visibleUsers[0] + 10)])}
+                      disabled={visibleUsers[0] >= Math.min(analysisData.length, 200)}
+                      className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      +10
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-1 mt-4">
+                  <button
+                    onClick={() => setVisibleUsers([10])}
+                    className={`px-2 py-1 text-xs rounded ${visibleUsers[0] === 10 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    10
+                  </button>
+                  <button
+                    onClick={() => setVisibleUsers([25])}
+                    className={`px-2 py-1 text-xs rounded ${visibleUsers[0] === 25 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    25
+                  </button>
+                  <button
+                    onClick={() => setVisibleUsers([50])}
+                    className={`px-2 py-1 text-xs rounded ${visibleUsers[0] === 50 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    50
+                  </button>
+                  <button
+                    onClick={() => setVisibleUsers([100])}
+                    className={`px-2 py-1 text-xs rounded ${visibleUsers[0] === 100 ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    100
+                  </button>
+                  <button
+                    onClick={() => setVisibleUsers([Math.min(analysisData.length, 200)])}
+                    className={`px-2 py-1 text-xs rounded ${visibleUsers[0] === Math.min(analysisData.length, 200) ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    All ({Math.min(analysisData.length, 200)})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

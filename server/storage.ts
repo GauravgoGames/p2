@@ -47,7 +47,7 @@ interface LeaderboardUser {
 
 export interface IStorage {
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
   
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -58,6 +58,15 @@ export interface IStorage {
   updateUser(id: number, userData: Partial<User>): Promise<User>;
   updateUserVerification(id: number, isVerified: boolean): Promise<User>;
   deleteUser(id: number): Promise<void>;
+  
+  // Social engagement methods
+  incrementUserLoveCount(userId: number): Promise<User>;
+  incrementUserViewCount(userId: number): Promise<User>;
+  
+  // Authenticated love system methods
+  toggleUserLove(loverId: number, lovedUserId: number): Promise<{ isLoved: boolean; lovedByCount: number }>;
+  getUserLoveStatus(loverId: number, lovedUserId: number): Promise<boolean>;
+  getUserLovers(userId: number): Promise<User[]>;
   
   // Team methods
   createTeam(team: InsertTeam): Promise<Team>;
@@ -128,7 +137,7 @@ export class MemStorage implements IStorage {
   private supportTickets: Map<number, SupportTicket>;
   private ticketMessages: Map<number, TicketMessage>;
   
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
   
   private userCounter: number;
   private teamCounter: number;
@@ -201,7 +210,10 @@ export class MemStorage implements IStorage {
       isVerified: true,
       proaceUserId: null,
       proaceDisqusId: null,
-      createdAt: new Date()
+      createdAt: new Date(),
+      securityCode: null,
+      lovedByCount: 0,
+      viewedByCount: 0
     });
     
     console.log('Admin user created successfully');
@@ -252,7 +264,10 @@ export class MemStorage implements IStorage {
       displayName: userData.displayName || null,
       email: userData.email || null,
       profileImage: userData.profileImage || null,
-      role: userData.role || 'user'
+      role: userData.role || 'user',
+      securityCode: userData.securityCode || null,
+      lovedByCount: 0,
+      viewedByCount: 0
     };
     this.users.set(id, user);
     return user;
@@ -294,7 +309,11 @@ export class MemStorage implements IStorage {
   // Team methods
   async createTeam(team: InsertTeam): Promise<Team> {
     const id = this.teamCounter++;
-    const newTeam: Team = { ...team, id };
+    const newTeam: Team = { 
+      ...team, 
+      id,
+      logoUrl: team.logoUrl ?? null 
+    };
     this.teams.set(id, newTeam);
     return newTeam;
   }
@@ -393,7 +412,7 @@ export class MemStorage implements IStorage {
       throw new Error("Match not found");
     }
     
-    const updatedMatch = { ...match, ...result, status: 'completed' };
+    const updatedMatch = { ...match, ...result, status: 'completed' as const };
     this.matches.set(id, updatedMatch);
     
     // Calculate points for users who made predictions
@@ -409,7 +428,7 @@ export class MemStorage implements IStorage {
     this.matches.delete(id);
     
     // Delete associated predictions
-    for (const [predId, prediction] of this.predictions.entries()) {
+    for (const [predId, prediction] of Array.from(this.predictions.entries())) {
       if (prediction.matchId === id) {
         this.predictions.delete(predId);
       }
@@ -423,7 +442,9 @@ export class MemStorage implements IStorage {
       ...prediction, 
       id, 
       createdAt: new Date(), 
-      pointsEarned: 0 
+      pointsEarned: 0,
+      predictedTossWinnerId: prediction.predictedTossWinnerId ?? null,
+      predictedMatchWinnerId: prediction.predictedMatchWinnerId ?? null
     };
     
     this.predictions.set(id, newPrediction);
@@ -508,8 +529,8 @@ export class MemStorage implements IStorage {
         return {
           id: user.id,
           username: user.username,
-          displayName: user.displayName,
-          profileImage: user.profileImage,
+          displayName: user.displayName || undefined,
+          profileImage: user.profileImage || undefined,
           points: user.points,
           correctPredictions,
           totalMatches: filteredPredictions.length,
@@ -562,8 +583,8 @@ export class MemStorage implements IStorage {
         return {
           id: user.id,
           username: user.username,
-          displayName: user.displayName,
-          profileImage: user.profileImage,
+          displayName: user.displayName || undefined,
+          profileImage: user.profileImage || undefined,
           points: tournamentPoints,
           correctPredictions,
           totalMatches: filteredPredictions.length,
@@ -739,7 +760,7 @@ export class MemStorage implements IStorage {
   async getTeamsByTournament(tournamentId: number): Promise<Team[]> {
     const teams: Team[] = [];
     
-    for (const [key, _] of this.tournamentTeams.entries()) {
+    for (const [key, _] of Array.from(this.tournamentTeams.entries())) {
       const [tourIdStr, teamIdStr] = key.split('-');
       const tourId = parseInt(tourIdStr);
       const teamId = parseInt(teamIdStr);
@@ -883,7 +904,55 @@ export class MemStorage implements IStorage {
     
     return messagesWithUsernames;
   }
+
+  // Social engagement methods
+  async incrementUserLoveCount(userId: number): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const updatedUser = {
+      ...user,
+      lovedByCount: (user.lovedByCount || 0) + 1
+    };
+    
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
+  async incrementUserViewCount(userId: number): Promise<User> {
+    const user = this.users.get(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const updatedUser = {
+      ...user,
+      viewedByCount: (user.viewedByCount || 0) + 1
+    };
+    
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
+  // Authenticated love system methods (stub implementations for MemStorage)
+  async toggleUserLove(loverId: number, lovedUserId: number): Promise<{ isLoved: boolean; lovedByCount: number }> {
+    // For MemStorage, we'll use a simple approach without persistent relationships
+    throw new Error('Love system requires database storage - please use authenticated sessions');
+  }
+
+  async getUserLoveStatus(loverId: number, lovedUserId: number): Promise<boolean> {
+    return false; // Default to false for MemStorage
+  }
+
+  async getUserLovers(userId: number): Promise<User[]> {
+    return []; // Return empty array for MemStorage
+  }
 }
 
-// Use in-memory storage with tournament-team relationships working
-export const storage = new MemStorage();
+// Import DatabaseStorage from database-storage.ts
+import { storage as databaseStorage } from './database-storage';
+
+// Use DatabaseStorage for PostgreSQL
+export const storage = databaseStorage;

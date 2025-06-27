@@ -1,11 +1,13 @@
 
-import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { useParams, Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, PieChart, Check, X } from "lucide-react";
+import { Trophy, PieChart, Check, X, Heart, Eye, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
   id: number;
@@ -15,7 +17,12 @@ interface UserProfile {
   points: number;
   correctPredictions: number;
   totalMatches: number;
+  lovedByCount: number;
+  viewedByCount: number;
+  isVerified: boolean;
 }
+
+
 
 interface Prediction {
   id: number;
@@ -34,6 +41,8 @@ interface Prediction {
 export default function UserProfilePage() {
   const params = useParams<{ username: string }>();
   const username = params.username;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: user, isLoading: userLoading } = useQuery<UserProfile>({
     queryKey: [`/api/users/${username}`],
@@ -44,6 +53,75 @@ export default function UserProfilePage() {
     },
     retry: 1
   });
+
+  // Query to check if current user has loved this profile
+  const { data: loveStatus } = useQuery({
+    queryKey: [`/api/users/${username}/love-status`],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${username}/love-status`, {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        if (res.status === 401) return { isLoved: false };
+        throw new Error('Failed to fetch love status');
+      }
+      return res.json();
+    },
+    retry: false
+  });
+
+
+
+  // Mutation for authenticated love toggle
+  const loveMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/users/${username}/love`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Please log in to love users');
+        }
+        throw new Error('Failed to update love status');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/love-status`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/lovers`] });
+      toast({
+        title: data.isLoved ? "Mark Loved" : "Mark Unloved",
+        description: data.isLoved ? "You have loved this user." : "You have unloved this user.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Mutation to increment view count
+  const viewMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/users/${username}/view`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Failed to update view count');
+      return res.json();
+    },
+  });
+
+  // Automatically increment view count when profile loads
+  useEffect(() => {
+    if (user && username) {
+      viewMutation.mutate();
+    }
+  }, [user?.id]); // Only trigger when user ID changes
 
   const { data: predictions = [], isLoading: predictionsLoading } = useQuery<Prediction[]>({
     queryKey: [`/api/users/${username}/predictions`],
@@ -82,16 +160,22 @@ export default function UserProfilePage() {
     );
   }
 
-  // Calculate statistics
-  const totalPredictions = predictions?.length * 2 || 0;
-  const correctPredictions = predictions?.reduce((acc: number, p: any) => {
+  // Calculate statistics - only count completed matches
+  const completedPredictions = predictions?.filter((p: any) => 
+    p.match && (p.match.status === 'completed' || p.match.status === 'tie' || p.match.status === 'void')
+  ) || [];
+  
+  const totalMatches = completedPredictions.length;
+  const correctPredictions = completedPredictions.reduce((acc: number, p: any) => {
     let correct = 0;
     const match = p.match;
     if (match.tossWinnerId && p.predictedTossWinnerId === match.tossWinnerId) correct++;
     if (match.matchWinnerId && p.predictedMatchWinnerId === match.matchWinnerId) correct++;
     return acc + correct;
   }, 0) || 0;
-  const accuracy = totalPredictions > 0 ? (correctPredictions / totalPredictions * 100).toFixed(1) : '0.0';
+  
+  const totalPossiblePredictions = totalMatches * 2;
+  const accuracy = totalPossiblePredictions > 0 ? (correctPredictions / totalPossiblePredictions * 100).toFixed(1) : '0.0';
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-8">
@@ -109,9 +193,54 @@ export default function UserProfilePage() {
                 </Avatar>
                 <h1 className="text-2xl font-bold mt-4">{user.displayName || user.username}</h1>
                 <p className="text-neutral-600">@{user.username}</p>
+                {user.isVerified && (
+                  <div className="flex items-center gap-1 mt-2 px-2 py-1 bg-blue-100 rounded-full">
+                    <Check className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-600 font-medium">Verified</span>
+                  </div>
+                )}
+
+                {/* Social engagement metrics */}
+                <div className="flex gap-4 mt-6 w-full">
+                  <div className="flex-1 text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loveMutation.mutate()}
+                      disabled={loveMutation.isPending}
+                      className={`w-full flex items-center gap-2 transition-colors ${
+                        loveStatus?.isLoved 
+                          ? 'bg-pink-50 border-pink-300 text-pink-700' 
+                          : 'hover:bg-pink-50 hover:border-pink-300'
+                      }`}
+                    >
+                      <Heart 
+                        className={`h-4 w-4 ${
+                          loveStatus?.isLoved 
+                            ? 'text-red-500 fill-red-500' 
+                            : 'text-pink-500'
+                        }`} 
+                      />
+                      <span className="text-sm">{user.lovedByCount || 0}</span>
+                    </Button>
+                    <p className="text-xs text-neutral-500 mt-1">
+                      {loveStatus?.isLoved ? 'Loved' : 'Love'}
+                    </p>
+                  </div>
+                  
+                  <div className="flex-1 text-center">
+                    <div className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-neutral-200 rounded-md bg-neutral-50">
+                      <Eye className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm">{user.viewedByCount || 0}</span>
+                    </div>
+                    <p className="text-xs text-neutral-500 mt-1">Viewed By</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+
         </div>
 
         {/* Stats & Predictions */}
@@ -154,7 +283,7 @@ export default function UserProfilePage() {
                         <X className="h-8 w-8 text-red-500" />
                       </div>
                     </div>
-                    <div className="text-3xl font-bold text-purple-700">{correctPredictions}/{totalPredictions}</div>
+                    <div className="text-3xl font-bold text-purple-700">{correctPredictions}/{totalMatches > 0 ? totalMatches * 2 : 0}</div>
                     <p className="text-sm font-medium text-purple-800">Correct Predictions</p>
                   </div>
                 </CardContent>

@@ -44,6 +44,7 @@ const AuthPage = () => {
     displayName: z.string().optional(),
     email: z.union([z.string().email(), z.literal('')]).optional(),
     proaceUserId: z.string().optional(),
+    securityCode: z.string().optional(),
   }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
@@ -67,6 +68,7 @@ const AuthPage = () => {
       displayName: "",
       email: "",
       proaceUserId: "",
+      securityCode: "",
     },
   });
   
@@ -160,6 +162,15 @@ const AuthPage = () => {
                   >
                     {loginMutation.isPending ? "Logging in..." : "Login"}
                   </Button>
+                  
+                  <div className="text-center mt-4">
+                    <a 
+                      href="/forgot-password" 
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Forgot your password?
+                    </a>
+                  </div>
                 </form>
               </Form>
             </TabsContent>
@@ -235,6 +246,27 @@ const AuthPage = () => {
                             disabled={registerMutation.isPending}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={registerForm.control}
+                    name="securityCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Security Code (optional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="For password recovery - remember this code" 
+                            {...field} 
+                            disabled={registerMutation.isPending}
+                          />
+                        </FormControl>
+                        <div className="text-xs text-gray-600 mt-1">
+                          Set a security code that you can remember. This will be used to recover your password if you forget it.
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

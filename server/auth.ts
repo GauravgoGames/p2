@@ -90,15 +90,36 @@ export function setupAuth(app: Express): void {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const existingUser = await storage.getUserByUsername(req.body.username);
-      if (existingUser) {
-        return res.status(400).send("Username already exists");
+      const { username, password, email, displayName } = req.body;
+      
+      // Basic validation
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
       }
       
-      // Create user without logging in
+      // Validate username format
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return res.status(400).json({ message: "Username must be 3-20 characters and contain only letters, numbers, and underscores" });
+      }
+      
+      // Validate password strength
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
+      }
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Hash password and create user
+      const hashedPassword = await hashPassword(password);
       const user = await storage.createUser({
-        ...req.body,
-        password: await hashPassword(req.body.password),
+        username,
+        password: hashedPassword,
+        email: email || null,
+        displayName: displayName || null,
       });
       
       // Check if the request is coming from the admin panel
@@ -111,12 +132,12 @@ export function setupAuth(app: Express): void {
         // For regular registration, log in the user as before
         req.login(user, (err) => {
           if (err) return next(err);
-          // @ts-ignore - Type issues with user format
           return res.status(201).json(user);
         });
       }
     } catch (error) {
-      next(error);
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Error creating user account" });
     }
   });
 
@@ -134,5 +155,67 @@ export function setupAuth(app: Express): void {
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     res.json(req.user);
+  });
+
+  // Forgot password - verify security code
+  app.post("/api/forgot-password/verify", async (req, res) => {
+    try {
+      const { username, securityCode } = req.body;
+      
+      if (!username || !securityCode) {
+        return res.status(400).json({ message: "Username and security code are required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (!user.securityCode) {
+        return res.status(400).json({ message: "Security code not set for this user" });
+      }
+      
+      if (user.securityCode !== securityCode.trim()) {
+        return res.status(400).json({ message: "Invalid security code" });
+      }
+      
+      res.json({ message: "Security code verified", userId: user.id });
+    } catch (error) {
+      console.error("Error verifying security code:", error);
+      res.status(500).json({ message: "Error verifying security code" });
+    }
+  });
+
+  // Forgot password - reset password
+  app.post("/api/forgot-password/reset", async (req, res) => {
+    try {
+      const { username, securityCode, newPassword } = req.body;
+      
+      if (!username || !securityCode || !newPassword) {
+        return res.status(400).json({ message: "Username, security code, and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (!user.securityCode || user.securityCode !== securityCode.trim()) {
+        return res.status(400).json({ message: "Invalid security code" });
+      }
+      
+      // Update password
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateUser(user.id, { password: hashedPassword });
+      
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Error resetting password" });
+    }
   });
 }

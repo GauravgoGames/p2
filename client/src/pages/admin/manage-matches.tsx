@@ -85,6 +85,7 @@ const newMatchSchema = z.object({
     required_error: "Match date is required",
   }),
   status: z.enum(['upcoming', 'ongoing', 'completed']).default('upcoming'),
+  discussionLink: z.string().url("Please enter a valid URL").optional().or(z.literal('')),
 });
 
 // Update match result schema with conditional validation
@@ -154,6 +155,7 @@ const ManageMatches = () => {
       tournamentName: '',
       location: '',
       status: 'upcoming',
+      discussionLink: '',
     },
   });
 
@@ -662,6 +664,26 @@ const ManageMatches = () => {
                         <SelectItem value="completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={createMatchForm.control}
+                name="discussionLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Discussion Link</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="https://www.pro-ace-predictions.co.uk/discussion/match-topic" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Link to discussion post page (optional)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
