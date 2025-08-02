@@ -214,6 +214,79 @@ const ManageTeams = () => {
     },
   });
   
+  // Edit team mutation
+  const editTeamMutation = useMutation({
+    mutationFn: async (data: TeamFormData & { id: number }) => {
+      // Manual logo upload first if there's a file
+      if (logoFile) {
+        const formData = new FormData();
+        formData.append('logo', logoFile);
+        
+        const uploadRes = await fetch('/api/teams/upload-logo', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        });
+        
+        if (!uploadRes.ok) {
+          throw new Error('Logo upload failed');
+        }
+        
+        const logoData = await uploadRes.json();
+        data.logoUrl = logoData.logoUrl;
+      }
+      
+      const { id, tournamentIds, ...updateData } = data;
+      
+      // Update team basic info
+      const updateRes = await apiRequest('PUT', `/api/teams/${id}`, updateData);
+      const updatedTeam = await updateRes.json();
+      
+      // Handle tournament associations if provided
+      if (tournamentIds && Array.isArray(tournamentIds)) {
+        // Get current tournaments for the team
+        const currentTournamentsRes = await fetch(`/api/teams/${id}/tournaments`);
+        const currentTournaments = currentTournamentsRes.ok ? await currentTournamentsRes.json() : [];
+        const currentTournamentIds = currentTournaments.map((t: any) => t.id);
+        
+        // Remove team from tournaments not in the new list
+        for (const tournamentId of currentTournamentIds) {
+          if (!tournamentIds.includes(tournamentId)) {
+            await apiRequest('DELETE', `/api/tournaments/${tournamentId}/teams/${id}`);
+          }
+        }
+        
+        // Add team to new tournaments
+        for (const tournamentId of tournamentIds) {
+          if (!currentTournamentIds.includes(tournamentId)) {
+            await apiRequest('POST', `/api/tournaments/${tournamentId}/teams`, { teamId: id });
+          }
+        }
+      }
+      
+      return updatedTeam;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Team Updated',
+        description: 'The team has been successfully updated',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
+      setEditDialogOpen(false);
+      editTeamForm.reset();
+      setLogoFile(null);
+      setLogoPreview(null);
+      setSelectedTeam(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update team',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Delete team mutation
   const deleteTeamMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -240,6 +313,40 @@ const ManageTeams = () => {
   // Form submission handlers
   const onCreateTeamSubmit = async (data: TeamFormData) => {
     createTeamMutation.mutate(data);
+  };
+
+  const onEditTeamSubmit = async (data: TeamFormData) => {
+    if (!selectedTeam) return;
+    editTeamMutation.mutate({ ...data, id: selectedTeam.id });
+  };
+
+  const handleEditTeam = async (team: Team) => {
+    setSelectedTeam(team);
+    
+    // Get tournaments that this team is part of
+    try {
+      const res = await fetch(`/api/teams/${team.id}/tournaments`);
+      const teamTournaments = res.ok ? await res.json() : [];
+      const tournamentIds = teamTournaments.map((t: any) => t.id);
+      
+      editTeamForm.reset({
+        name: team.name,
+        logoUrl: team.logoUrl || '',
+        isCustom: team.isCustom,
+        tournamentIds: tournamentIds
+      });
+    } catch (error) {
+      editTeamForm.reset({
+        name: team.name,
+        logoUrl: team.logoUrl || '',
+        isCustom: team.isCustom,
+        tournamentIds: []
+      });
+    }
+    
+    setLogoPreview(team.logoUrl || null);
+    setLogoFile(null); // Reset file selection
+    setEditDialogOpen(true);
   };
   
   const handleDeleteTeam = (team: Team) => {
@@ -306,6 +413,13 @@ const ManageTeams = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditTeam(team)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -441,6 +555,122 @@ const ManageTeams = () => {
                 >
                   {createTeamMutation.isPending || uploadLogoMutation.isPending ? 
                     'Creating...' : 'Create Team'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Team Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Team</DialogTitle>
+            <DialogDescription>
+              Update team information
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...editTeamForm}>
+            <form onSubmit={editTeamForm.handleSubmit(onEditTeamSubmit)} className="space-y-6">
+              <FormField
+                control={editTeamForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Team Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Mumbai Indians" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="space-y-2">
+                <FormLabel>Team Logo</FormLabel>
+                <div className="flex gap-4 items-center">
+                  <div className="border-2 border-dashed border-neutral-300 rounded-lg p-4 flex flex-col items-center justify-center w-32 h-32">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Team logo preview" className="max-h-full max-w-full" />
+                    ) : (
+                      <div className="text-neutral-400 text-center">
+                        <Upload className="mx-auto h-8 w-8 mb-2" />
+                        <span className="text-xs">Upload logo</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <Input 
+                      type="file" 
+                      accept="image/*" 
+                      className="mt-1"
+                      onChange={handleLogoChange}
+                    />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      Recommended size: 512x512px. Max 5MB.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tournament Selection */}
+              <div className="space-y-3">
+                <FormLabel>Associated Tournaments</FormLabel>
+                <FormDescription>
+                  Select which tournaments this team will participate in
+                </FormDescription>
+                <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto border rounded-md p-3">
+                  {tournaments?.map((tournament) => (
+                    <div key={tournament.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-tournament-${tournament.id}`}
+                        checked={editTeamForm.watch('tournamentIds')?.includes(tournament.id) || false}
+                        onCheckedChange={(checked) => {
+                          const currentIds = editTeamForm.getValues('tournamentIds') || [];
+                          if (checked) {
+                            editTeamForm.setValue('tournamentIds', [...currentIds, tournament.id]);
+                          } else {
+                            editTeamForm.setValue('tournamentIds', currentIds.filter(id => id !== tournament.id));
+                          }
+                        }}
+                      />
+                      <label 
+                        htmlFor={`edit-tournament-${tournament.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {tournament.name}
+                      </label>
+                    </div>
+                  ))}
+                  {!tournaments?.length && (
+                    <p className="text-sm text-neutral-500 text-center py-2">
+                      No tournaments available. Create tournaments first.
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditDialogOpen(false);
+                    editTeamForm.reset();
+                    setLogoFile(null);
+                    setLogoPreview(null);
+                    setSelectedTeam(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={editTeamMutation.isPending}
+                >
+                  {editTeamMutation.isPending ? 'Updating...' : 'Update Team'}
                 </Button>
               </DialogFooter>
             </form>

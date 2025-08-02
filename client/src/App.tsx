@@ -22,9 +22,11 @@ import ManageMatches from "@/pages/admin/manage-matches";
 import ManageUsers from "@/pages/admin/manage-users";
 import ManageTeams from "@/pages/admin/manage-teams";
 import SiteSettings from "@/pages/admin/site-settings";
+import BackupPage from "@/pages/admin/backup-page";
 import AdminAddTournament from "@/pages/admin-add-tournament";
 import ManageTournaments from "@/pages/admin/manage-tournaments";
 import AdminSupportPage from "@/pages/admin-support-page";
+import AdminPointsPage from "@/pages/admin-points-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
@@ -66,6 +68,8 @@ function Router() {
           <ProtectedRoute path="/admin/teams" component={ManageTeams} adminOnly={true} />
           <ProtectedRoute path="/admin/support" component={AdminSupportPage} adminOnly={true} />
           <ProtectedRoute path="/admin/tournaments" component={ManageTournaments} adminOnly={true} />
+          <ProtectedRoute path="/admin/backup" component={BackupPage} adminOnly={true} />
+          <ProtectedRoute path="/admin/points" component={AdminPointsPage} adminOnly={true} />
           <ProtectedRoute path="/admin/settings" component={SiteSettings} adminOnly={true} />
           <Route component={NotFound} />
         </Switch>

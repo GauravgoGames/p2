@@ -13,6 +13,20 @@ import {
   insertTournamentSchema 
 } from "@shared/schema";
 import { uploadTeamLogo, uploadUserProfile, uploadSiteLogo, uploadTournamentImage, getPublicUrl } from "./upload";
+import multer from "multer";
+
+// Configure multer for backup uploads
+const uploadBackup = multer({
+  dest: 'uploads/backups/',
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/sql' || file.mimetype === 'text/plain' || file.originalname.endsWith('.sql')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only SQL files are allowed'));
+    }
+  }
+});
 import { 
   validate,
   validateRegister,
@@ -22,6 +36,7 @@ import {
   validateCreateTournament,
   validateId,
   validateUsername,
+  validateProfileUpdate,
   validateTimeframeQuery,
   validateCreateTicket,
   validateTicketMessage,
@@ -61,6 +76,28 @@ const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add health check endpoint for deployment (before other routes)
+  app.get('/health', (req: Request, res: Response) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      message: 'CricProAce Server is running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      service: 'cricproace-api'
+    });
+  });
+
+  // Add API health check for deployments that expect API endpoint
+  app.get('/api/health', (req: Request, res: Response) => {
+    res.status(200).json({ 
+      status: 'healthy', 
+      message: 'CricProAce Server is running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      service: 'cricproace-api'
+    });
+  });
+
   // Ensure upload directories exist
   const uploadDirs = [
     'public/uploads',
@@ -123,6 +160,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(team);
     } catch (error) {
       res.status(400).json({ message: "Invalid team data", error });
+    }
+  });
+
+  app.put("/api/teams/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team ID" });
+      }
+      const updatedTeam = await storage.updateTeam(id, req.body);
+      res.json(updatedTeam);
+    } catch (error) {
+      console.error("Error updating team:", error);
+      res.status(500).json({ message: "Error updating team" });
+    }
+  });
+
+  app.get("/api/teams/:id/tournaments", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team ID" });
+      }
+      const tournaments = await storage.getTournamentsByTeam(id);
+      res.json(tournaments);
+    } catch (error) {
+      console.error("Error fetching team tournaments:", error);
+      res.status(500).json({ message: "Error fetching team tournaments" });
     }
   });
 
@@ -191,7 +256,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const matches = await storage.getMatches(status);
       res.json(matches);
     } catch (error) {
-      res.status(500).json({ message: "Error fetching matches" });
+      console.error("Error fetching matches:", error);
+      res.status(500).json({ message: "Error fetching matches", error: (error as Error).message });
     }
   });
   
@@ -270,13 +336,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: "Error updating match status", error });
     }
   });
+
+  // Update match - allows admin to update any match details at any time
+  app.put("/api/matches/:id", isAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { 
+        matchDate, 
+        location, 
+        status, 
+        tossWinnerId, 
+        matchWinnerId, 
+        team1Score, 
+        team2Score, 
+        resultSummary, 
+        discussionLink 
+      } = req.body;
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid match ID" });
+      }
+      
+      const match = await storage.getMatchById(id);
+      if (!match) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      // Prepare update data
+      const updateData: any = {};
+      
+      if (matchDate) {
+        updateData.matchDate = new Date(matchDate);
+      }
+      
+      if (location !== undefined) {
+        updateData.location = location;
+      }
+      
+      if (status) {
+        updateData.status = status;
+      }
+      
+      if (tossWinnerId !== undefined) {
+        updateData.tossWinnerId = tossWinnerId ? parseInt(tossWinnerId.toString()) : null;
+      }
+      
+      if (matchWinnerId !== undefined) {
+        updateData.matchWinnerId = matchWinnerId ? parseInt(matchWinnerId.toString()) : null;
+      }
+      
+      if (team1Score !== undefined) {
+        updateData.team1Score = team1Score || null;
+      }
+      
+      if (team2Score !== undefined) {
+        updateData.team2Score = team2Score || null;
+      }
+      
+      if (resultSummary !== undefined) {
+        updateData.resultSummary = resultSummary || null;
+      }
+      
+      if (discussionLink !== undefined) {
+        updateData.discussionLink = discussionLink || null;
+      }
+      
+      // Update the match
+      const updatedMatch = await storage.updateMatch(id, updateData);
+      
+      // If match winner is set and status is completed, recalculate points
+      if (updateData.matchWinnerId && updateData.status === 'completed') {
+        await storage.recalculatePointsForMatch(id);
+      }
+      
+      res.json(updatedMatch);
+    } catch (error) {
+      console.error("Error updating match:", error);
+      res.status(500).json({ message: "Error updating match" });
+    }
+  });
   
   app.delete("/api/matches/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
+      // First delete all predictions associated with this match (cascade deletion)
+      await storage.deletePredictionsForMatch(id);
+      // Then delete the match itself
       await storage.deleteMatch(id);
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting match:", error);
       res.status(500).json({ message: "Error deleting match" });
     }
   });
@@ -290,7 +439,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const predictions = await storage.getUserPredictions(userId);
-      res.json(predictions);
+      
+      // Filter out toss predictions for premium tournaments with hidden toss predictions
+      const filteredPredictions = await Promise.all(predictions.map(async (prediction: any) => {
+        if (prediction.match && prediction.match.tournamentId) {
+          const tournament = await storage.getTournamentById(prediction.match.tournamentId!);
+          if (tournament && tournament.isPremium && tournament.hideTossPredictions) {
+            // Remove toss prediction data for premium tournaments
+            return {
+              ...prediction,
+              predictedTossWinnerId: null,
+              predictedTossWinner: null
+            };
+          }
+        }
+        return prediction;
+      }));
+      
+      res.json(filteredPredictions);
     } catch (error) {
       res.status(500).json({ message: "Error fetching predictions" });
     }
@@ -322,9 +488,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const predictions = await storage.getPredictionsForMatch(matchId);
       
-      // Count toss predictions for each team
-      const tossTeam1Predictions = predictions.filter((p: any) => p.predictedTossWinnerId === match.team1Id).length;
-      const tossTeam2Predictions = predictions.filter((p: any) => p.predictedTossWinnerId === match.team2Id).length;
+      // Check if toss predictions should be hidden for premium tournaments
+      const tournament = await storage.getTournamentById(match.tournamentId!);
+      const hideTossPredictions = tournament && tournament.isPremium && tournament.hideTossPredictions;
+      
+      // Count toss predictions for each team (set to 0 if hidden)
+      const tossTeam1Predictions = hideTossPredictions ? 0 : predictions.filter((p: any) => p.predictedTossWinnerId === match.team1Id).length;
+      const tossTeam2Predictions = hideTossPredictions ? 0 : predictions.filter((p: any) => p.predictedTossWinnerId === match.team2Id).length;
       const totalTossPredictions = tossTeam1Predictions + tossTeam2Predictions;
 
       // Count match predictions for each team
@@ -404,6 +574,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Predictions are closed for this match" });
       }
       
+      // Check premium access if match is in a premium tournament
+      if (match.tournamentId) {
+        const tournament = await storage.getTournamentById(match.tournamentId);
+        if (tournament?.isPremium) {
+          const hasAccess = await storage.isPremiumUser(match.tournamentId, userId);
+          if (!hasAccess) {
+            return res.status(403).json({ message: "This is a premium tournament. Only selected users can make predictions." });
+          }
+        }
+      }
+      
       // Check if user has already predicted for this match
       const existingPrediction = await storage.getUserPredictionForMatch(userId, validatedData.matchId);
       if (existingPrediction) {
@@ -436,7 +617,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(leaderboard);
       }
     } catch (error) {
-      res.status(500).json({ message: "Error fetching leaderboard" });
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Error fetching leaderboard", error: (error as Error).message });
     }
   });
   
@@ -449,9 +631,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Remove sensitive information
+      // Use current user points from users table instead of calculating from pointsLedger
+      const actualPoints = Number(user.points) || 0;
+      
+      // Get user statistics with fallbacks
+      let correctPredictions = 0;
+      let totalMatches = 0;
+      let viewedByCount = 0;
+      
+      try {
+        const userStats = await storage.getUserStats(user.id);
+        correctPredictions = userStats?.correctPredictions || 0;
+        totalMatches = userStats?.totalMatches || 0;
+        viewedByCount = user.viewedByCount || 0;
+      } catch (error) {
+        console.warn(`Could not fetch stats for user ${user.id}, using defaults:`, error);
+      }
+      
+      // Remove sensitive information and ensure all required fields exist
       const { password, ...safeUser } = user;
-      res.json(safeUser);
+      res.json({ 
+        ...safeUser, 
+        points: actualPoints,
+        correctPredictions,
+        totalMatches,
+        viewedByCount,
+        displayName: user.displayName || user.username,
+        profileImage: user.profileImage || null,
+        isVerified: user.isVerified || false
+      });
     } catch (error) {
       res.status(500).json({ message: "Error fetching user" });
     }
@@ -466,56 +674,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const predictions = await storage.getUserPredictions(user.id);
-      res.json(predictions);
+      
+      // Filter predictions to hide toss predictions for premium tournaments with hideTossPredictions enabled
+      const filteredPredictions = await Promise.all(
+        predictions.map(async (prediction) => {
+          // Get tournament details to check if toss predictions should be hidden
+          const tournament = await storage.getTournamentById(prediction.match.tournamentId!);
+          if (tournament && tournament.isPremium && tournament.hideTossPredictions) {
+            // Remove toss prediction data for premium tournaments with hidden toss predictions
+            return {
+              ...prediction,
+              predictedTossWinnerId: null,
+              predictedTossWinner: null
+            };
+          }
+          
+          return prediction;
+        })
+      );
+      
+      res.json(filteredPredictions);
     } catch (error) {
       res.status(500).json({ message: "Error fetching predictions" });
     }
   });
 
-  // Social engagement endpoints - Authenticated love system
-  app.post("/api/users/:username/love", isAuthenticated, async (req, res) => {
-    try {
-      const loverId = req.user?.id;
-      if (!loverId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
 
-      const lovedUser = await storage.getUserByUsername(req.params.username);
-      if (!lovedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const result = await storage.toggleUserLove(loverId, lovedUser.id);
-      res.json({ 
-        isLoved: result.isLoved,
-        lovedByCount: result.lovedByCount,
-        message: result.isLoved ? "User loved" : "Love removed"
-      });
-    } catch (error) {
-      console.error('Love toggle error:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Error updating love status" });
-    }
-  });
-
-  // Get user love status for authenticated users
-  app.get("/api/users/:username/love-status", isAuthenticated, async (req, res) => {
-    try {
-      const loverId = req.user?.id;
-      if (!loverId) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-
-      const lovedUser = await storage.getUserByUsername(req.params.username);
-      if (!lovedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const isLoved = await storage.getUserLoveStatus(loverId, lovedUser.id);
-      res.json({ isLoved });
-    } catch (error) {
-      res.status(500).json({ message: "Error fetching love status" });
-    }
-  });
 
 
 
@@ -542,6 +726,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(users);
     } catch (error) {
       res.status(500).json({ message: "Error fetching users" });
+    }
+  });
+
+  // Admin route to get all users for point management
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Error fetching users" });
+    }
+  });
+
+  // Admin route to update user points
+  app.put("/api/admin/users/:id/points", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const { points } = req.body;
+
+      if (isNaN(userId) || isNaN(points) || points < 0) {
+        return res.status(400).json({ message: "Invalid user ID or points value" });
+      }
+
+      const updatedUser = await storage.updateUserPoints(userId, points);
+      res.json({ message: "Points updated successfully", user: updatedUser });
+    } catch (error) {
+      res.status(500).json({ message: "Error updating user points" });
     }
   });
   
@@ -592,9 +803,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error deleting user" });
     }
   });
+
+  // Admin route to edit user points
+  app.put("/api/admin/users/:id/points", isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id, 10);
+      const { points } = req.body;
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      if (typeof points !== 'number' || points < 0) {
+        return res.status(400).json({ message: "Points must be a non-negative number" });
+      }
+      
+      // Update user points directly
+      const updatedUser = await storage.updateUserPoints(userId, points);
+      
+      res.json({ 
+        message: "User points updated successfully", 
+        user: updatedUser 
+      });
+    } catch (error) {
+      console.error("Error updating user points:", error);
+      res.status(500).json({ message: "Error updating user points" });
+    }
+  });
   
   // Profile
-  app.patch("/api/profile", isAuthenticated, async (req, res) => {
+  app.patch("/api/profile", isAuthenticated, validateProfileUpdate, validate, async (req: any, res: any) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -806,12 +1044,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create tournament (admin only)
   app.post("/api/tournaments", isAdmin, async (req, res) => {
     try {
-      const validatedData = insertTournamentSchema.parse(req.body);
+      const { selectedUserIds, ...tournamentData } = req.body;
+      const validatedData = insertTournamentSchema.parse(tournamentData);
+      
+      // Check for duplicate tournament name
+      const existingTournament = await storage.getTournamentByName(validatedData.name);
+      if (existingTournament) {
+        return res.status(400).json({ 
+          message: "Tournament name already exists", 
+          error: `A tournament named "${validatedData.name}" already exists. Please choose a different name.` 
+        });
+      }
+      
       const tournament = await storage.createTournament(validatedData);
+      
+      // If premium tournament with selected users, add them to premium users table
+      if (tournament.isPremium && selectedUserIds && Array.isArray(selectedUserIds)) {
+        for (const userId of selectedUserIds) {
+          try {
+            await storage.addPremiumUser(tournament.id, userId);
+          } catch (error) {
+            console.error(`Error adding premium user ${userId} to tournament ${tournament.id}:`, error);
+          }
+        }
+      }
+      
       res.status(201).json(tournament);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating tournament:", error);
-      res.status(400).json({ message: "Invalid tournament data", error });
+      if (error.code === '23505' && error.constraint === 'tournaments_name_unique') {
+        res.status(400).json({ 
+          message: "Tournament name already exists", 
+          error: "Please choose a different tournament name." 
+        });
+      } else {
+        res.status(400).json({ message: "Invalid tournament data", error: error?.message || String(error) });
+      }
     }
   });
 
@@ -819,7 +1087,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/tournaments/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      const updatedTournament = await storage.updateTournament(id, req.body);
+      const { selectedUserIds, ...tournamentData } = req.body;
+      const updatedTournament = await storage.updateTournament(id, tournamentData);
+      
+      // Handle premium user updates if this is a premium tournament
+      if (updatedTournament.isPremium && selectedUserIds && Array.isArray(selectedUserIds)) {
+        // Clear existing premium users for this tournament
+        const existingPremiumUsers = await storage.getPremiumUsers(id);
+        for (const premiumUser of existingPremiumUsers) {
+          await storage.removePremiumUser(id, premiumUser.userId);
+        }
+        
+        // Add new premium users
+        for (const userId of selectedUserIds) {
+          try {
+            await storage.addPremiumUser(id, userId);
+          } catch (error) {
+            console.error(`Error adding premium user ${userId} to tournament ${id}:`, error);
+          }
+        }
+      } else if (!updatedTournament.isPremium) {
+        // If tournament is no longer premium, remove all premium users
+        const existingPremiumUsers = await storage.getPremiumUsers(id);
+        for (const premiumUser of existingPremiumUsers) {
+          await storage.removePremiumUser(id, premiumUser.userId);
+        }
+      }
+      
       res.json(updatedTournament);
     } catch (error) {
       console.error("Error updating tournament:", error);
@@ -831,11 +1125,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/tournaments/:id", isAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
-      const updatedTournament = await storage.updateTournament(id, req.body);
+      const { selectedUserIds, ...tournamentData } = req.body;
+      const updatedTournament = await storage.updateTournament(id, tournamentData);
+      
+      // Handle premium user updates if this is a premium tournament
+      if (updatedTournament.isPremium && selectedUserIds && Array.isArray(selectedUserIds)) {
+        // Clear existing premium users for this tournament
+        const existingPremiumUsers = await storage.getPremiumUsers(id);
+        for (const premiumUser of existingPremiumUsers) {
+          await storage.removePremiumUser(id, premiumUser.userId);
+        }
+        
+        // Add new premium users
+        for (const userId of selectedUserIds) {
+          try {
+            await storage.addPremiumUser(id, userId);
+          } catch (error) {
+            console.error(`Error adding premium user ${userId} to tournament ${id}:`, error);
+          }
+        }
+      } else if (!updatedTournament.isPremium) {
+        // If tournament is no longer premium, remove all premium users
+        const existingPremiumUsers = await storage.getPremiumUsers(id);
+        for (const premiumUser of existingPremiumUsers) {
+          await storage.removePremiumUser(id, premiumUser.userId);
+        }
+      }
+      
       res.json(updatedTournament);
     } catch (error) {
       console.error("Error updating tournament:", error);
       res.status(400).json({ message: "Invalid tournament data", error });
+    }
+  });
+
+  // Get selected users for premium tournament (admin only)
+  app.get("/api/tournaments/:id/selected-users", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const premiumUsers = await storage.getPremiumUsers(tournamentId);
+      
+      // Get full user details for each premium user
+      const users = await Promise.all(
+        premiumUsers.map(async (premiumUser: any) => {
+          const user = await storage.getUserById(premiumUser.userId);
+          return {
+            id: user?.id,
+            username: user?.username,
+            displayName: user?.displayName || user?.username
+          };
+        })
+      );
+      
+      res.json(users.filter(user => user.id)); // Filter out any null users
+    } catch (error) {
+      console.error("Error fetching selected users:", error);
+      res.status(500).json({ message: "Error fetching selected users" });
     }
   });
 
@@ -1237,6 +1582,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating ticket:", error);
       res.status(500).json({ message: "Error updating ticket" });
+    }
+  });
+
+  // Premium Tournament Management Routes
+  
+  // Add premium user to tournament (admin only)
+  app.post("/api/tournaments/:id/premium-users", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+
+      const premiumUser = await storage.addPremiumUser(tournamentId, userId);
+      res.status(201).json(premiumUser);
+    } catch (error) {
+      console.error("Error adding premium user:", error);
+      res.status(500).json({ message: "Error adding premium user" });
+    }
+  });
+
+  // Remove premium user from tournament (admin only)
+  app.delete("/api/tournaments/:id/premium-users/:userId", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const userId = parseInt(req.params.userId, 10);
+      
+      await storage.removePremiumUser(tournamentId, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing premium user:", error);
+      res.status(500).json({ message: "Error removing premium user" });
+    }
+  });
+
+  // Get premium users for tournament (admin only)
+  app.get("/api/tournaments/:id/premium-users", isAdmin, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const premiumUsers = await storage.getPremiumUsers(tournamentId);
+      res.json(premiumUsers);
+    } catch (error) {
+      console.error("Error fetching premium users:", error);
+      res.status(500).json({ message: "Error fetching premium users" });
+    }
+  });
+
+  // Check if user has premium access to tournament
+  app.get("/api/tournaments/:id/premium-access", isAuthenticated, async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const userId = req.user!.id;
+      
+      const isPremium = await storage.isPremiumUser(tournamentId, userId);
+      res.json({ isPremium });
+    } catch (error) {
+      console.error("Error checking premium access:", error);
+      res.status(500).json({ message: "Error checking premium access" });
+    }
+  });
+
+  // Tournament-specific leaderboard
+  app.get("/api/tournaments/:id/leaderboard", async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id, 10);
+      const leaderboard = await storage.getTournamentLeaderboard(tournamentId, "all");
+      res.json(leaderboard);
+    } catch (error) {
+      console.error("Error fetching tournament leaderboard:", error);
+      res.status(500).json({ message: "Error fetching tournament leaderboard" });
+    }
+  });
+
+  // Backup and Restore Routes
+  app.get("/api/admin/backups", isAdmin, async (req, res) => {
+    try {
+      const { SimpleBackupManager } = await import('./simple-backup');
+      const backups = await SimpleBackupManager.listBackups();
+      res.json(backups || []);
+    } catch (error) {
+      console.error("Error fetching backups:", error);
+      res.status(500).json({ message: "Error fetching backups", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/admin/backup/create", isAdmin, async (req, res) => {
+    try {
+      const { SimpleBackupManager } = await import('./simple-backup');
+      const backup = await SimpleBackupManager.createBackup();
+      res.json(backup);
+    } catch (error) {
+      console.error("Error creating backup:", error);
+      res.status(500).json({ message: "Error creating backup", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/admin/backup/download/:backupId", isAdmin, async (req, res) => {
+    try {
+      const { SimpleBackupManager } = await import('./simple-backup');
+      const backupData = await SimpleBackupManager.downloadBackup(req.params.backupId);
+      
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${req.params.backupId}.sql"`);
+      res.send(backupData);
+    } catch (error) {
+      console.error("Error downloading backup:", error);
+      res.status(404).json({ message: "Backup not found" });
+    }
+  });
+
+  app.delete("/api/admin/backup/delete/:backupId", isAdmin, async (req, res) => {
+    try {
+      const { SimpleBackupManager } = await import('./simple-backup');
+      await SimpleBackupManager.deleteBackup(req.params.backupId);
+      res.json({ message: "Backup deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting backup:", error);
+      res.status(500).json({ message: "Error deleting backup", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/admin/backup/restore", isAdmin, uploadBackup.single('backup'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No backup file uploaded" });
+      }
+
+      const fs = await import('fs');
+      const sqlContent = fs.readFileSync(req.file.path, 'utf8');
+      
+      const { SimpleBackupManager } = await import('./simple-backup');
+      const result = await SimpleBackupManager.restoreBackup(sqlContent);
+      
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+      
+      res.json({
+        message: "Backup restored successfully",
+        recordCount: result.recordCount
+      });
+    } catch (error) {
+      console.error("Error restoring backup:", error);
+      res.status(500).json({ message: "Error restoring backup", error: (error as Error).message });
     }
   });
 

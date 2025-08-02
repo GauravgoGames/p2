@@ -60,13 +60,7 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
   
   // Social engagement methods
-  incrementUserLoveCount(userId: number): Promise<User>;
   incrementUserViewCount(userId: number): Promise<User>;
-  
-  // Authenticated love system methods
-  toggleUserLove(loverId: number, lovedUserId: number): Promise<{ isLoved: boolean; lovedByCount: number }>;
-  getUserLoveStatus(loverId: number, lovedUserId: number): Promise<boolean>;
-  getUserLovers(userId: number): Promise<User[]>;
   
   // Team methods
   createTeam(team: InsertTeam): Promise<Team>;
@@ -105,6 +99,9 @@ export interface IStorage {
   getPredictionsForMatch(matchId: number): Promise<Prediction[]>;
   updatePrediction(id: number, predictionData: Partial<InsertPrediction>): Promise<Prediction>;
   getAllPredictions(): Promise<Prediction[]>;
+  deletePredictionsByMatch(matchId: number): Promise<void>;
+  deletePredictionsForMatch(matchId: number): Promise<void>;
+  recalculatePointsForMatch(matchId: number): Promise<void>;
   
   // Leaderboard methods
   getLeaderboard(timeframe: string): Promise<LeaderboardUser[]>;
@@ -122,6 +119,12 @@ export interface IStorage {
   updateTicketStatus(ticketId: number, status: string, assignedToUserId?: number): Promise<SupportTicket>;
   addTicketMessage(ticketId: number, userId: number, message: string, isAdminReply?: boolean): Promise<TicketMessage>;
   getTicketMessages(ticketId: number): Promise<TicketMessageWithUsername[]>;
+  
+  // Premium tournament methods
+  addPremiumUser(tournamentId: number, userId: number): Promise<any>;
+  removePremiumUser(tournamentId: number, userId: number): Promise<void>;
+  getPremiumUsers(tournamentId: number): Promise<any[]>;
+  isPremiumUser(tournamentId: number, userId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -212,7 +215,6 @@ export class MemStorage implements IStorage {
       proaceDisqusId: null,
       createdAt: new Date(),
       securityCode: null,
-      lovedByCount: 0,
       viewedByCount: 0
     });
     
@@ -266,7 +268,6 @@ export class MemStorage implements IStorage {
       profileImage: userData.profileImage || null,
       role: userData.role || 'user',
       securityCode: userData.securityCode || null,
-      lovedByCount: 0,
       viewedByCount: 0
     };
     this.users.set(id, user);
@@ -346,7 +347,8 @@ export class MemStorage implements IStorage {
       team1Score: null,
       team2Score: null,
       resultSummary: null,
-      status: matchData.status || "upcoming"
+      status: matchData.status || "upcoming",
+      discussionLink: matchData.discussionLink || null
     };
     this.matches.set(id, match);
     
@@ -675,7 +677,9 @@ export class MemStorage implements IStorage {
       imageUrl: tournament.imageUrl || null,
       startDate: tournament.startDate || null,
       endDate: tournament.endDate || null,
-      createdAt: new Date()
+      createdAt: new Date(),
+      isPremium: tournament.isPremium || false,
+      hideTossPredictions: tournament.hideTossPredictions || false
     };
     
     this.tournaments.set(id, newTournament);
@@ -906,21 +910,6 @@ export class MemStorage implements IStorage {
   }
 
   // Social engagement methods
-  async incrementUserLoveCount(userId: number): Promise<User> {
-    const user = this.users.get(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-    
-    const updatedUser = {
-      ...user,
-      lovedByCount: (user.lovedByCount || 0) + 1
-    };
-    
-    this.users.set(userId, updatedUser);
-    return updatedUser;
-  }
-
   async incrementUserViewCount(userId: number): Promise<User> {
     const user = this.users.get(userId);
     if (!user) {
@@ -936,18 +925,45 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
-  // Authenticated love system methods (stub implementations for MemStorage)
-  async toggleUserLove(loverId: number, lovedUserId: number): Promise<{ isLoved: boolean; lovedByCount: number }> {
-    // For MemStorage, we'll use a simple approach without persistent relationships
-    throw new Error('Love system requires database storage - please use authenticated sessions');
+  // Premium tournament methods - stub implementations for MemStorage
+  async addPremiumUser(tournamentId: number, userId: number): Promise<any> {
+    return { tournamentId, userId, id: Date.now() };
   }
 
-  async getUserLoveStatus(loverId: number, lovedUserId: number): Promise<boolean> {
+  async removePremiumUser(tournamentId: number, userId: number): Promise<void> {
+    // No-op for MemStorage
+  }
+
+  async getPremiumUsers(tournamentId: number): Promise<any[]> {
+    return [];
+  }
+
+  async isPremiumUser(tournamentId: number, userId: number): Promise<boolean> {
     return false; // Default to false for MemStorage
   }
 
-  async getUserLovers(userId: number): Promise<User[]> {
-    return []; // Return empty array for MemStorage
+  async deletePredictionsByMatch(matchId: number): Promise<void> {
+    // Remove all predictions for this match
+    const predictionEntries = Array.from(this.predictions.entries());
+    for (const [predictionId, prediction] of predictionEntries) {
+      if (prediction.matchId === matchId) {
+        this.predictions.delete(predictionId);
+      }
+    }
+  }
+
+  async deletePredictionsForMatch(matchId: number): Promise<void> {
+    return this.deletePredictionsByMatch(matchId);
+  }
+
+  async recalculatePointsForMatch(matchId: number): Promise<void> {
+    // Get the match details
+    const match = await this.getMatchById(matchId);
+    if (!match || match.status !== 'completed') {
+      return;
+    }
+    // Calculate points for this specific match
+    await this.calculatePoints(matchId);
   }
 }
 

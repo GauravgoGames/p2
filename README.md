@@ -1,51 +1,83 @@
-# CricProAce - Sports Prediction Platform
+# CricProAce - Cricket Prediction Platform
 
-A comprehensive cricket prediction platform with tournament management, user verification system, and support ticket functionality.
+A comprehensive cricket prediction platform built with React, TypeScript, and Node.js.
 
 ## Features
-- Advanced tournament and match management
-- User prediction system with points and leaderboards
-- Admin verification system with badges
-- Support ticket system with real-time chat
-- Mobile-responsive design
-- PostgreSQL database integration
 
-## Technology Stack
-- **Frontend**: React + TypeScript + Tailwind CSS
-- **Backend**: Express.js + TypeScript
+- User registration and authentication
+- Tournament management
+- Match predictions with confidence levels
+- Real-time leaderboards
+- Admin verification system
+- Premium tournament access
+- File upload for profiles and assets
+- Enterprise-grade security features
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Node.js, Express.js, TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Custom session-based auth
-- **UI Components**: Shadcn/ui + Radix UI
+- **Build**: Vite (frontend), esbuild (backend)
+- **Deployment**: Replit, cPanel compatible
 
-## Quick Start
+## Development Setup
 
-### For cPanel Hosting:
-
-1. Upload all files to your cPanel file manager
-2. Install Node.js via cPanel (if available) or contact hosting provider
-3. Set up PostgreSQL database in cPanel
-4. Configure environment variables in `.env` file
-5. Run deployment script:
+1. Clone the repository
+2. Install dependencies:
    ```bash
-   chmod +x cpanel-deploy.sh
-   ./cpanel-deploy.sh
+   npm install
+   ```
+3. Set up environment variables in `.env`
+4. Push database schema:
+   ```bash
+   npm run db:push
+   ```
+5. Start development server:
+   ```bash
+   npm run dev
    ```
 
-### Environment Setup:
-1. Copy `.env.example` to `.env`
-2. Update database credentials
-3. Set a secure SESSION_SECRET
-4. Configure your domain settings
+## Building for Production
 
-### Database Setup:
-The application will automatically create required tables on first run.
+### For Replit/Modern Hosting:
+```bash
+npm run build
+npm start
+```
 
-## Admin Access
-Default admin credentials:
-- Username: admin
-- Password: admin123
+### For cPanel/Traditional Hosting:
+```bash
+npm run build:cpanel
+```
+This creates a `cpanel-build/` folder with all necessary files for upload.
 
-**Important**: Change admin password immediately after first login!
+## Default Login
 
-## Support
-For technical support, please refer to the documentation or contact the development team.
+- Username: `admin`
+- Password: `admin123456`
+
+**Important**: Change the default password after first login.
+
+## Security Features
+
+- Password hashing with bcrypt
+- Rate limiting and DDoS protection
+- Input validation and sanitization
+- CSRF protection
+- Session security
+- File upload restrictions
+- SQL injection prevention
+
+## Deployment
+
+The application supports deployment on:
+- Replit (primary platform)
+- cPanel shared hosting
+- VPS/dedicated servers
+
+See deployment documentation for specific instructions.
+
+## License
+
+MIT License

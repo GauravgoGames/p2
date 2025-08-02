@@ -33,7 +33,8 @@ export const generateCSRFToken = (sessionId: string): string => {
   
   // Clean up old tokens (older than 1 hour)
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const [id, data] of csrfTokens.entries()) {
+  const entries = Array.from(csrfTokens.entries());
+  for (const [id, data] of entries) {
     if (data.timestamp < oneHourAgo) {
       csrfTokens.delete(id);
     }
@@ -110,7 +111,8 @@ export const detectSuspiciousActivity = (req: Request, res: Response, next: Next
   }
   
   // Clean up old entries
-  for (const [storedIp, data] of suspiciousIPs.entries()) {
+  const entries = Array.from(suspiciousIPs.entries());
+  for (const [storedIp, data] of entries) {
     if (now - data.lastAttempt > 24 * 60 * 60 * 1000) { // 24 hours
       suspiciousIPs.delete(storedIp);
     }
@@ -133,10 +135,14 @@ export const sessionConfig = {
   name: 'sessionId' // Change from default 'connect.sid'
 };
 
-// Password strength validation
+// Enhanced password strength validation
 export const validatePasswordStrength = (password: string): { valid: boolean; message?: string } => {
-  if (password.length < 8) {
-    return { valid: false, message: 'Password must be at least 8 characters long' };
+  if (password.length < 12) {
+    return { valid: false, message: 'Password must be at least 12 characters long' };
+  }
+  
+  if (password.length > 128) {
+    return { valid: false, message: 'Password must not exceed 128 characters' };
   }
   
   if (!/[A-Z]/.test(password)) {
@@ -153,6 +159,21 @@ export const validatePasswordStrength = (password: string): { valid: boolean; me
   
   if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     return { valid: false, message: 'Password must contain at least one special character' };
+  }
+  
+  // Check for common weak passwords
+  const commonWeakPasswords = [
+    'password123', '123456789', 'qwertyuiop', 'admin123456',
+    'password1234', '12345678901', 'adminpassword'
+  ];
+  
+  if (commonWeakPasswords.some(weak => password.toLowerCase().includes(weak))) {
+    return { valid: false, message: 'Password contains common weak patterns' };
+  }
+  
+  // Check for repeated characters
+  if (/(.)\1{3,}/.test(password)) {
+    return { valid: false, message: 'Password cannot contain more than 3 consecutive identical characters' };
   }
   
   return { valid: true };

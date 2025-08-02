@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Crown, Medal, Search, Trophy, Users, Award, Heart, Eye } from 'lucide-react';
+import { Crown, Medal, Search, Trophy, Users, Award, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/use-auth';
@@ -44,51 +44,7 @@ const LeaderboardPage = () => {
   const [timeframe, setTimeframe] = useState('weekly');
   const [selectedTournament, setSelectedTournament] = useState<string>('overall');
   const [isMobile, setIsMobile] = useState(false);
-  const [lovedUsers, setLovedUsers] = useState<Set<number>>(new Set());
   const { toast } = useToast();
-
-  // Love mutation with authentication
-  const loveMutation = useMutation({
-    mutationFn: async (username: string) => {
-      const res = await fetch(`/api/users/${username}/love`, { 
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error('Please log in to love users');
-        }
-        throw new Error('Failed to update love status');
-      }
-      return res.json();
-    },
-    onSuccess: (data, username) => {
-      const userEntry = filteredUsers().find(u => u.username === username);
-      if (userEntry) {
-        if (data.isLoved) {
-          setLovedUsers(prev => new Set([...Array.from(prev), userEntry.id]));
-        } else {
-          setLovedUsers(prev => {
-            const newSet = new Set(Array.from(prev));
-            newSet.delete(userEntry.id);
-            return newSet;
-          });
-        }
-      }
-      queryClient.invalidateQueries({ queryKey: ['/api/leaderboard'] });
-      toast({
-        title: data.isLoved ? "Mark Loved" : "Mark Unloved",
-        description: data.isLoved ? "You have loved this user." : "You have unloved this user.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
 
   // View mutation
   const viewMutation = useMutation({
@@ -140,34 +96,7 @@ const LeaderboardPage = () => {
     }
   });
 
-  // Load love status for all users if authenticated
-  useEffect(() => {
-    if (!user || !leaderboard) return;
-    
-    const loadLoveStatuses = async () => {
-      const lovedUserIds: number[] = [];
-      
-      try {
-        for (const userData of leaderboard) {
-          const res = await fetch(`/api/users/${userData.username}/love-status`, {
-            credentials: 'include'
-          });
-          if (res.ok) {
-            const { isLoved } = await res.json();
-            if (isLoved) {
-              lovedUserIds.push(userData.id);
-            }
-          }
-        }
-        
-        setLovedUsers(new Set(lovedUserIds));
-      } catch (error) {
-        // Ignore errors during love status loading
-      }
-    };
 
-    loadLoveStatuses();
-  }, [user, leaderboard]);
 
   const filteredUsers = () => {
     if (!leaderboard) return [];
@@ -295,16 +224,6 @@ const LeaderboardPage = () => {
                           {entry.displayName || entry.username}
                         </button>
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => loveMutation.mutate(entry.username)}
-                            disabled={loveMutation.isPending}
-                            className={`p-1 hover:bg-pink-50 rounded-full transition-colors ${
-                              lovedUsers.has(entry.id) ? 'text-red-500' : 'text-neutral-500 hover:text-red-500'
-                            }`}
-                            title="Love this player"
-                          >
-                            <Heart className={`h-4 w-4 ${lovedUsers.has(entry.id) ? 'fill-current' : ''}`} />
-                          </button>
                           <button
                             onClick={() => handleViewProfile(entry.username)}
                             className="p-1 hover:bg-blue-50 rounded-full transition-colors text-neutral-500 hover:text-blue-500"

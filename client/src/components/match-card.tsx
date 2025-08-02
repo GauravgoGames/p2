@@ -6,12 +6,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, CheckCircle, XCircle, Trophy, Clock, Activity, MessageSquare, Share2, Link2 } from 'lucide-react';
+import { MapPin, CheckCircle, XCircle, Trophy, Clock, Activity, MessageSquare, Share2, Link2, Crown } from 'lucide-react';
 import { FaWhatsapp, FaInstagram } from 'react-icons/fa';
 import { format, differenceInSeconds, differenceInMinutes, differenceInHours, differenceInDays, addHours, subHours } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import VoteBand from './vote-band';
+
 
 interface MatchCardProps {
   match: Match & {
@@ -22,9 +23,14 @@ interface MatchCardProps {
     discussionLink?: string | null;
   };
   userPrediction?: Prediction;
+  tournament?: {
+    isPremium?: boolean;
+    hideTossPredictions?: boolean;
+  };
+  hasAccess?: boolean;
 }
 
-const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
+const MatchCard = ({ match, userPrediction, tournament, hasAccess = true }: MatchCardProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -85,13 +91,18 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
 
   const predictionMutation = useMutation({
     mutationFn: async () => {
-      if (!predictionState.predictedTossWinnerId || !predictionState.predictedMatchWinnerId) {
+      // Validate required predictions based on tournament settings
+      if (!predictionState.predictedMatchWinnerId) {
+        throw new Error('Please select the match winner');
+      }
+      
+      if (!tournament?.hideTossPredictions && !predictionState.predictedTossWinnerId) {
         throw new Error('Please select both toss and match winners');
       }
 
       const predictionData = {
         matchId: match.id,
-        predictedTossWinnerId: predictionState.predictedTossWinnerId,
+        predictedTossWinnerId: tournament?.hideTossPredictions ? null : predictionState.predictedTossWinnerId,
         predictedMatchWinnerId: predictionState.predictedMatchWinnerId
       };
 
@@ -152,6 +163,36 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         title: 'Login Required',
         description: 'Please login to submit predictions',
         variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if user has access to premium tournament
+    if (tournament?.isPremium && !hasAccess) {
+      toast({
+        title: "Access denied",
+        description: "You don't have access to predict in this premium tournament",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Ensure required predictions are made
+    if (!predictionState.predictedMatchWinnerId) {
+      toast({
+        title: "Incomplete prediction",
+        description: "Please select the match winner",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check toss prediction only if not hidden
+    if (!tournament?.hideTossPredictions && !predictionState.predictedTossWinnerId) {
+      toast({
+        title: "Incomplete prediction",
+        description: "Please select both toss winner and match winner",
+        variant: "destructive",
       });
       return;
     }
@@ -270,11 +311,26 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
           </div>
         )}
 
+        {/* Premium Contest Badge */}
+        {tournament?.isPremium && (
+          <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 px-3 py-1 text-center mb-4 rounded-lg">
+            <span className="text-white font-semibold text-sm flex items-center justify-center gap-1">
+              <Crown className="h-4 w-4" />
+              Premium Contest
+            </span>
+          </div>
+        )}
+
         {/* Tournament and Date Section - Rearranged to prevent overlap */}
         <div className="flex flex-col gap-2 mb-6 mt-8">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <div className="text-sm font-medium text-neutral-700">{match.tournamentName}</div>
+              <div className="flex items-center gap-1">
+                {tournament?.isPremium && (
+                  <Crown className="h-4 w-4 text-yellow-500" />
+                )}
+                <div className="text-sm font-medium text-neutral-700">{match.tournamentName}</div>
+              </div>
               <div className="text-sm text-neutral-700">{formatMatchTime(match.matchDate)}</div>
             </div>
             
@@ -415,12 +471,15 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         {/* Vote Bands - Show prediction statistics */}
         {match.status !== 'completed' && match.status !== 'void' && match.status !== 'tie' && (
           <div className="space-y-2">
-            <VoteBand 
-              matchId={match.id} 
-              team1Name={match.team1.name} 
-              team2Name={match.team2.name} 
-              type="toss"
-            />
+            {/* Only show toss predictions if not hidden in tournament */}
+            {!tournament?.hideTossPredictions && (
+              <VoteBand 
+                matchId={match.id} 
+                team1Name={match.team1.name} 
+                team2Name={match.team2.name} 
+                type="toss"
+              />
+            )}
             <VoteBand 
               matchId={match.id} 
               team1Name={match.team1.name} 
@@ -448,8 +507,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               </div>
             )}
 
-            {/* TIE Match - Show only toss results */}
-            {match.status === 'tie' && userPrediction && (
+            {/* TIE Match - Show only toss results if not hidden */}
+            {match.status === 'tie' && userPrediction && !tournament?.hideTossPredictions && (
               <div className="space-y-4">
                 {/* Toss Result only for TIE */}
                 <div className="grid grid-cols-2 gap-4">
@@ -485,34 +544,36 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
             {/* COMPLETED Match - Show both toss and match results */}
             {match.status === 'completed' && userPrediction && (
               <div className="space-y-4">
-                {/* Toss Result */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-1">
-                    <div className="text-neutral-500 font-medium text-center mb-1">Toss</div>
-                    {match.tossWinnerId && (
+                {/* Toss Result - Only show if not hidden */}
+                {!tournament?.hideTossPredictions && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-1">
+                      <div className="text-neutral-500 font-medium text-center mb-1">Toss</div>
+                      {match.tossWinnerId && (
+                        <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
+                          <Trophy className="h-4 w-4 text-yellow-500" />
+                          <span className="font-medium">
+                            {match.tossWinnerId === match.team1Id ? match.team1.name : match.team2.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="col-span-1">
+                      <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
                       <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
-                        <Trophy className="h-4 w-4 text-yellow-500" />
+                        {userPrediction.predictedTossWinnerId === match.tossWinnerId ? (
+                          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        )}
                         <span className="font-medium">
-                          {match.tossWinnerId === match.team1Id ? match.team1.name : match.team2.name}
+                          {userPrediction.predictedTossWinnerId === match.team1Id ? match.team1.name : match.team2.name}
                         </span>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-1">
-                    <div className="text-neutral-500 font-medium text-center mb-1">Your Prediction</div>
-                    <div className="flex items-center justify-center gap-2 bg-gray-50 py-2 px-3 rounded-md">
-                      {userPrediction.predictedTossWinnerId === match.tossWinnerId ? (
-                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                      )}
-                      <span className="font-medium">
-                        {userPrediction.predictedTossWinnerId === match.team1Id ? match.team1.name : match.team2.name}
-                      </span>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Match Winner Result */}
                 <div className="grid grid-cols-2 gap-4">
@@ -545,15 +606,27 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               </div>
             )}
           </div>
+        ) : tournament?.isPremium && !hasAccess ? (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Crown className="h-6 w-6 text-amber-600 mr-2" />
+              <span className="font-semibold text-amber-800">Premium Tournament</span>
+            </div>
+            <p className="text-amber-700 text-sm">
+              This is a premium tournament. Only selected users can make predictions.
+            </p>
+          </div>
         ) : (
           <div className="predictions-container">
-            <div className="bg-gray-50 p-3 rounded-lg mb-3">
-              <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
-                  <span className="text-xs text-white font-bold">1</span>
+            {/* Only show toss predictions if not hidden */}
+            {!tournament?.hideTossPredictions && (
+              <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
+                    <span className="text-xs text-white font-bold">1</span>
+                  </div>
+                  Who will win the toss?
                 </div>
-                Who will win the toss?
-              </div>
 
               <div className="flex space-x-3">
                 <button 
@@ -597,11 +670,12 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 </button>
               </div>
             </div>
+            )}
 
             <div className="bg-gray-50 p-3 rounded-lg">
               <div className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                 <div className="h-5 w-5 rounded-full bg-yellow-400 mr-2 flex items-center justify-center">
-                  <span className="text-xs text-white font-bold">2</span>
+                  <span className="text-xs text-white font-bold">{tournament?.hideTossPredictions ? '1' : '2'}</span>
                 </div>
                 Who will win the match?
               </div>
@@ -674,6 +748,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
                 <span>Discuss Now</span>
               </Button>
             )}
+
+
           </div>
 
         {match.status === 'upcoming' ? (
@@ -682,12 +758,15 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
               size="sm"
               onClick={handleSubmitPrediction}
               disabled={
-                !predictionState.predictedTossWinnerId || 
+                (tournament?.isPremium && !hasAccess) ||
+                (!tournament?.hideTossPredictions && !predictionState.predictedTossWinnerId) || 
                 !predictionState.predictedMatchWinnerId || 
                 predictionMutation.isPending
               }
               className={`px-4 py-2 rounded-full text-sm font-medium shadow-md transition-all ${
-                !predictionState.predictedTossWinnerId || !predictionState.predictedMatchWinnerId
+                (tournament?.isPremium && !hasAccess) ||
+                (!tournament?.hideTossPredictions && !predictionState.predictedTossWinnerId) || 
+                !predictionState.predictedMatchWinnerId
                 ? 'bg-gray-300 text-gray-600'
                 : 'bg-gradient-to-r from-blue-600 to-primary text-white hover:from-blue-700 hover:to-blue-600'
               }`}
@@ -724,6 +803,8 @@ const MatchCard = ({ match, userPrediction }: MatchCardProps) => {
         )}
         </div>
       </div>
+
+
     </div>
   );
 };

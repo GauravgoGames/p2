@@ -10,24 +10,24 @@ import { SupportTicket } from "@shared/schema";
 
 export default function AdminSupportPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: tickets = [], isLoading } = useQuery<any[]>({
+  const { data: tickets = [], isLoading } = useQuery<SupportTicket[]>({
     queryKey: ["/api/admin/tickets"],
     retry: false,
   });
 
   // Filter tickets based on status
-  const filteredTickets = tickets.filter((ticket: any) => 
+  const filteredTickets = tickets.filter((ticket: SupportTicket) => 
     filterStatus === 'all' || ticket.status === filterStatus
   );
 
   // Get ticket counts by status
   const getStatusCount = (status: string) => {
     if (status === 'all') return tickets.length;
-    return tickets.filter((ticket: any) => ticket.status === status).length;
+    return tickets.filter((ticket: SupportTicket) => ticket.status === status).length;
   };
 
   const updateTicketMutation = useMutation({

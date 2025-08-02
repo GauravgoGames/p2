@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Tournament } from '@shared/schema';
-import { Trophy, Plus, Edit, Trash2, Calendar, Users, Upload } from 'lucide-react';
+import { Tournament, User } from '@shared/schema';
+import { Trophy, Plus, Edit, Trash2, Calendar, Users, Upload, Crown, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface TournamentFormData {
@@ -17,6 +19,9 @@ interface TournamentFormData {
   imageUrl: string;
   startDate: string;
   endDate: string;
+  isPremium: boolean;
+  hideTossPredictions: boolean;
+  selectedUserIds: number[];
 }
 
 export default function ManageTournaments() {
@@ -33,6 +38,9 @@ export default function ManageTournaments() {
     imageUrl: '',
     startDate: '',
     endDate: '',
+    isPremium: false,
+    hideTossPredictions: false,
+    selectedUserIds: [],
   });
   
   const { toast } = useToast();
@@ -44,6 +52,16 @@ export default function ManageTournaments() {
     queryFn: async () => {
       const res = await fetch('/api/tournaments');
       if (!res.ok) throw new Error('Failed to fetch tournaments');
+      return res.json();
+    }
+  });
+
+  // Fetch all users for premium user selection
+  const { data: allUsers } = useQuery<User[]>({
+    queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error('Failed to fetch users');
       return res.json();
     }
   });
@@ -113,10 +131,11 @@ export default function ManageTournaments() {
       setEditingTournament(null);
       resetForm();
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error('Tournament update error:', error);
       toast({
         title: "Error",
-        description: "Failed to update tournament. Please try again.",
+        description: error.message || "Failed to update tournament. Please try again.",
         variant: "destructive",
       });
     },
@@ -177,19 +196,40 @@ export default function ManageTournaments() {
       imageUrl: '',
       startDate: '',
       endDate: '',
+      isPremium: false,
+      hideTossPredictions: false,
+      selectedUserIds: [],
     });
     setImageFile(null);
     setImagePreview('');
   };
 
-  const handleEdit = (tournament: Tournament) => {
+  const handleEdit = async (tournament: Tournament) => {
     setEditingTournament(tournament);
+    
+    // Load selected users if it's a premium tournament
+    let selectedUserIds: number[] = [];
+    if (tournament.isPremium) {
+      try {
+        const response = await fetch(`/api/tournaments/${tournament.id}/selected-users`);
+        if (response.ok) {
+          const users = await response.json();
+          selectedUserIds = users.map((user: { id: number }) => user.id);
+        }
+      } catch (error) {
+        console.error('Failed to load selected users:', error);
+      }
+    }
+    
     setFormData({
       name: tournament.name,
       description: tournament.description || '',
       imageUrl: tournament.imageUrl || '',
       startDate: tournament.startDate ? new Date(tournament.startDate).toISOString().slice(0, 16) : '',
       endDate: tournament.endDate ? new Date(tournament.endDate).toISOString().slice(0, 16) : '',
+      isPremium: tournament.isPremium || false,
+      hideTossPredictions: tournament.hideTossPredictions || false,
+      selectedUserIds,
     });
     setImagePreview(tournament.imageUrl || '');
   };
@@ -450,6 +490,87 @@ export default function ManageTournaments() {
                   }}
                 />
               </div>
+            </div>
+
+            {/* Premium Tournament Options */}
+            <div className="space-y-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Crown className="h-5 w-5 text-yellow-600" />
+                <Label className="text-base font-semibold text-yellow-800">Premium Tournament Options</Label>
+              </div>
+              
+              {/* Premium Tournament Checkbox */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isPremium"
+                  checked={formData.isPremium}
+                  onCheckedChange={(checked) => 
+                    setFormData({ ...formData, isPremium: !!checked })
+                  }
+                />
+                <Label htmlFor="isPremium" className="text-sm font-medium">
+                  Make this a Premium Tournament
+                </Label>
+                <Star className="h-4 w-4 text-yellow-500" />
+              </div>
+              
+              {/* Premium Options - only show when isPremium is checked */}
+              {formData.isPremium && (
+                <div className="space-y-4 pl-6 border-l-2 border-yellow-300">
+                  {/* Hide Toss Predictions */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="hideTossPredictions"
+                      checked={formData.hideTossPredictions}
+                      onCheckedChange={(checked) => 
+                        setFormData({ ...formData, hideTossPredictions: !!checked })
+                      }
+                    />
+                    <Label htmlFor="hideTossPredictions" className="text-sm">
+                      Hide toss predictions for this tournament
+                    </Label>
+                  </div>
+                  
+                  {/* User Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Select Users (Premium Access)</Label>
+                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded p-2 bg-white">
+                      {allUsers && allUsers.length > 0 ? (
+                        allUsers.map((user) => (
+                          <div key={user.id} className="flex items-center space-x-2 py-1">
+                            <Checkbox
+                              id={`user-${user.id}`}
+                              checked={formData.selectedUserIds.includes(user.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setFormData({
+                                    ...formData,
+                                    selectedUserIds: [...formData.selectedUserIds, user.id]
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    selectedUserIds: formData.selectedUserIds.filter(id => id !== user.id)
+                                  });
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`user-${user.id}`} className="text-sm cursor-pointer flex items-center gap-1">
+                              {user.username}
+                              {user.isVerified && <Star className="h-3 w-3 text-blue-500" />}
+                            </Label>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500">No users available</p>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Selected users: {formData.selectedUserIds.length}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit Button */}

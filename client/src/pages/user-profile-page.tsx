@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, PieChart, Check, X, Heart, Eye, CheckCircle } from "lucide-react";
+import { Trophy, PieChart, Check, X, Eye, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,6 @@ interface UserProfile {
   points: number;
   correctPredictions: number;
   totalMatches: number;
-  lovedByCount: number;
   viewedByCount: number;
   isVerified: boolean;
 }
@@ -35,6 +34,17 @@ interface Prediction {
     team1Name: string;
     team2Name: string;
     status: string;
+    tournamentId?: number;
+  };
+  predictedTossWinnerId?: number;
+  predictedMatchWinnerId?: number;
+  predictedTossWinner?: {
+    id: number;
+    name: string;
+  };
+  predictedMatchWinner?: {
+    id: number;
+    name: string;
   };
 }
 
@@ -44,66 +54,34 @@ export default function UserProfilePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: user, isLoading: userLoading } = useQuery<UserProfile>({
+  const { data: user, isLoading: userLoading, error } = useQuery<UserProfile>({
     queryKey: [`/api/users/${username}`],
     queryFn: async () => {
       const res = await fetch(`/api/users/${username}`);
-      if (!res.ok) throw new Error('Failed to fetch user');
-      return res.json();
-    },
-    retry: 1
-  });
-
-  // Query to check if current user has loved this profile
-  const { data: loveStatus } = useQuery({
-    queryKey: [`/api/users/${username}/love-status`],
-    queryFn: async () => {
-      const res = await fetch(`/api/users/${username}/love-status`, {
-        credentials: 'include'
-      });
       if (!res.ok) {
-        if (res.status === 401) return { isLoved: false };
-        throw new Error('Failed to fetch love status');
-      }
-      return res.json();
-    },
-    retry: false
-  });
-
-
-
-  // Mutation for authenticated love toggle
-  const loveMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/users/${username}/love`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (!res.ok) {
-        if (res.status === 401) {
-          throw new Error('Please log in to love users');
+        if (res.status === 404) {
+          throw new Error('User not found');
         }
-        throw new Error('Failed to update love status');
+        throw new Error('Failed to fetch user');
       }
       return res.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/love-status`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${username}/lovers`] });
-      toast({
-        title: data.isLoved ? "Mark Loved" : "Mark Unloved",
-        description: data.isLoved ? "You have loved this user." : "You have unloved this user.",
-      });
+    retry: (failureCount, error) => {
+      // Only retry on network errors, not on 404s
+      if (error?.message === 'User not found') {
+        return false;
+      }
+      return failureCount < 2;
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
+
+
+
+
+
+
 
   // Mutation to increment view count
   const viewMutation = useMutation({
@@ -134,6 +112,16 @@ export default function UserProfilePage() {
     retry: 1
   });
 
+  // Get tournaments to check for toss prediction hiding
+  const { data: tournaments = [] } = useQuery({
+    queryKey: ['/api/tournaments'],
+    queryFn: async () => {
+      const res = await fetch('/api/tournaments');
+      if (!res.ok) throw new Error('Failed to fetch tournaments');
+      return res.json();
+    },
+  });
+
   if (userLoading || predictionsLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -148,12 +136,24 @@ export default function UserProfilePage() {
     );
   }
 
-  if (!user) {
+  if (error || !user) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
-          <CardContent className="p-6">
-            <p className="text-center text-red-500">User not found</p>
+          <CardContent className="p-6 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <X className="h-8 w-8 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">User Not Found</h2>
+                <p className="text-gray-600 mt-1">
+                  {error?.message === 'User not found' 
+                    ? 'This user does not exist or may have been removed.'
+                    : 'There was an error loading this profile. Please try again later.'}
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -169,12 +169,30 @@ export default function UserProfilePage() {
   const correctPredictions = completedPredictions.reduce((acc: number, p: any) => {
     let correct = 0;
     const match = p.match;
-    if (match.tossWinnerId && p.predictedTossWinnerId === match.tossWinnerId) correct++;
-    if (match.matchWinnerId && p.predictedMatchWinnerId === match.matchWinnerId) correct++;
+    
+    // Find tournament to check if toss predictions are hidden
+    const tournament = tournaments.find((t: any) => t.id === match.tournamentId);
+    const hideTossPredictions = tournament?.hideTossPredictions || false;
+    
+    // Only count toss predictions if not hidden
+    if (!hideTossPredictions && match.tossWinnerId && p.predictedTossWinnerId === match.tossWinnerId) {
+      correct++;
+    }
+    
+    if (match.matchWinnerId && p.predictedMatchWinnerId === match.matchWinnerId) {
+      correct++;
+    }
+    
     return acc + correct;
   }, 0) || 0;
   
-  const totalPossiblePredictions = totalMatches * 2;
+  // Calculate total possible predictions (considering hidden toss predictions)
+  const totalPossiblePredictions = completedPredictions.reduce((acc: number, p: any) => {
+    const tournament = tournaments.find((t: any) => t.id === p.match.tournamentId);
+    const hideTossPredictions = tournament?.hideTossPredictions || false;
+    return acc + (hideTossPredictions ? 1 : 2); // 1 if toss hidden, 2 if both predictions count
+  }, 0);
+  
   const accuracy = totalPossiblePredictions > 0 ? (correctPredictions / totalPossiblePredictions * 100).toFixed(1) : '0.0';
 
   return (
@@ -201,35 +219,9 @@ export default function UserProfilePage() {
                 )}
 
                 {/* Social engagement metrics */}
-                <div className="flex gap-4 mt-6 w-full">
-                  <div className="flex-1 text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loveMutation.mutate()}
-                      disabled={loveMutation.isPending}
-                      className={`w-full flex items-center gap-2 transition-colors ${
-                        loveStatus?.isLoved 
-                          ? 'bg-pink-50 border-pink-300 text-pink-700' 
-                          : 'hover:bg-pink-50 hover:border-pink-300'
-                      }`}
-                    >
-                      <Heart 
-                        className={`h-4 w-4 ${
-                          loveStatus?.isLoved 
-                            ? 'text-red-500 fill-red-500' 
-                            : 'text-pink-500'
-                        }`} 
-                      />
-                      <span className="text-sm">{user.lovedByCount || 0}</span>
-                    </Button>
-                    <p className="text-xs text-neutral-500 mt-1">
-                      {loveStatus?.isLoved ? 'Loved' : 'Love'}
-                    </p>
-                  </div>
-                  
-                  <div className="flex-1 text-center">
-                    <div className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-neutral-200 rounded-md bg-neutral-50">
+                <div className="flex justify-center mt-6 w-full">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 px-4 py-2 border border-neutral-200 rounded-md bg-neutral-50">
                       <Eye className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">{user.viewedByCount || 0}</span>
                     </div>
@@ -283,7 +275,7 @@ export default function UserProfilePage() {
                         <X className="h-8 w-8 text-red-500" />
                       </div>
                     </div>
-                    <div className="text-3xl font-bold text-purple-700">{correctPredictions}/{totalMatches > 0 ? totalMatches * 2 : 0}</div>
+                    <div className="text-3xl font-bold text-purple-700">{correctPredictions}/{totalPossiblePredictions}</div>
                     <p className="text-sm font-medium text-purple-800">Correct Predictions</p>
                   </div>
                 </CardContent>
@@ -296,22 +288,63 @@ export default function UserProfilePage() {
             <h2 className="text-2xl font-bold mb-4">Predictions</h2>
             {predictions.length > 0 ? (
               <div className="space-y-4">
-                {predictions.map((prediction) => (
-                  <Card key={prediction.id} className="overflow-hidden">
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-lg mb-2">{prediction.matchTitle}</h3>
-                      <p className="text-neutral-600 mb-2">
-                        {prediction.match.team1Name} vs {prediction.match.team2Name}
-                      </p>
-                      <div className="flex gap-4 text-sm">
-                        <span>Prediction: <strong>{prediction.prediction}</strong></span>
-                        {prediction.match.status === 'completed' && (
-                          <span>Result: <strong>{prediction.result}</strong></span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {predictions.map((prediction) => {
+                  // Find tournament to check if it's premium and has hidden toss predictions
+                  const tournament = tournaments.find((t: any) => t.id === prediction.match.tournamentId);
+                  const isPremium = tournament?.isPremium || false;
+                  const hideTossPredictions = tournament?.hideTossPredictions || false;
+                  
+
+                  
+                  return (
+                    <Card key={prediction.id} className="overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-bold text-lg">{prediction.matchTitle}</h3>
+                          {(isPremium || tournament?.isPremium) && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 rounded-full">
+                              <Trophy className="h-4 w-4 text-amber-600" />
+                              <span className="text-xs text-amber-600 font-medium">Premium</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-neutral-600 mb-2">
+                          {prediction.match.team1Name} vs {prediction.match.team2Name}
+                        </p>
+                        <div className="space-y-2">
+                          {/* Show toss prediction ONLY if tournament allows it AND data exists */}
+                          {!isPremium && !hideTossPredictions && prediction.predictedTossWinnerId && prediction.predictedTossWinner && (
+                            <div className="text-sm">
+                              <span className="text-yellow-600 font-medium">Toss Winner:</span>{" "}
+                              <strong>{prediction.predictedTossWinner.name}</strong>
+                            </div>
+                          )}
+                          
+                          {/* Premium tournaments - no toss prediction shown */}
+                          {isPremium && hideTossPredictions && (
+                            <div className="text-sm text-gray-500 italic">
+                              Toss predictions hidden for premium tournaments
+                            </div>
+                          )}
+                          
+                          {/* Always show match prediction */}
+                          {prediction.predictedMatchWinnerId && prediction.predictedMatchWinner && (
+                            <div className="text-sm">
+                              <span className="text-blue-600 font-medium">Match Winner:</span>{" "}
+                              <strong>{prediction.predictedMatchWinner.name}</strong>
+                            </div>
+                          )}
+                          
+                          {prediction.match.status === 'completed' && (
+                            <div className="text-sm text-green-600">
+                              <span className="font-medium">Status:</span> <strong>Completed</strong>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <Card className="p-8 border-dashed border-2 border-gray-200 bg-gray-50">

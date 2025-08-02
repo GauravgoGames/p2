@@ -1,0 +1,8 @@
+# CricProAce Deployment Configuration
+[deployment]
+deploymentTarget = "autoscale"
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
+
+[env]
+NODE_ENV = "production"
