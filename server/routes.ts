@@ -626,9 +626,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public user profile endpoint
   app.get("/api/users/:username", async (req, res) => {
     try {
-      const user = await storage.getUserByUsername(req.params.username);
+      const username = req.params.username.trim();
+      
+      // Log the request for debugging
+      console.log(`[DEBUG] Searching for user: "${username}"`);
+      
+      const user = await storage.getUserByUsername(username);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        console.log(`[DEBUG] User not found: "${username}"`);
+        
+        // Check if it's a common case issue or similar username
+        const allUsers = await storage.getAllUsers();
+        const similarUsers = allUsers.filter(u => 
+          u.username.toLowerCase().includes(username.toLowerCase()) ||
+          u.displayName?.toLowerCase().includes(username.toLowerCase())
+        );
+        
+        if (similarUsers.length > 0) {
+          console.log(`[DEBUG] Similar users found:`, similarUsers.map(u => u.username));
+        }
+        
+        return res.status(404).json({ 
+          message: "User not found",
+          searchedFor: username,
+          availableUsers: allUsers.map(u => u.username)
+        });
       }
       
       // Use current user points from users table instead of calculating from pointsLedger

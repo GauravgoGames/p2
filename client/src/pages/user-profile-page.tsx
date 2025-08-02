@@ -1,10 +1,10 @@
 
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, PieChart, Check, X, Eye, CheckCircle } from "lucide-react";
+import { Trophy, PieChart, Check, X, Eye, CheckCircle, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +53,7 @@ export default function UserProfilePage() {
   const username = params.username;
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: user, isLoading: userLoading, error } = useQuery<UserProfile>({
     queryKey: [`/api/users/${username}`],
@@ -147,11 +148,44 @@ export default function UserProfilePage() {
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">User Not Found</h2>
-                <p className="text-gray-600 mt-1">
+                <p className="text-gray-600 mt-1 mb-4">
                   {error?.message === 'User not found' 
-                    ? 'This user does not exist or may have been removed.'
+                    ? `The user "${username}" doesn't exist or has been removed.`
                     : 'There was an error loading this profile. Please try again later.'}
                 </p>
+                
+                {error?.message === 'User not found' && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+                    <h3 className="text-sm font-medium text-blue-800 mb-2">Suggestions:</h3>
+                    <ul className="text-sm text-blue-700 space-y-1">
+                      <li>• Check the username spelling</li>
+                      <li>• Visit the leaderboard to find active users</li>
+                      <li>• This user might have been deleted</li>
+                    </ul>
+                  </div>
+                )}
+                
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => window.history.back()} 
+                    variant="outline"
+                  >
+                    Go Back
+                  </Button>
+                  <Button 
+                    onClick={() => setLocation('/leaderboard')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    View Leaderboard
+                  </Button>
+                  <Button 
+                    onClick={() => setLocation('/')}
+                    variant="outline"
+                  >
+                    <Home className="h-4 w-4 mr-2" />
+                    Home
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
