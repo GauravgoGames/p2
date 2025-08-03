@@ -1,75 +1,83 @@
-# Cricket Pro Ace - Complete Platform
+# CricProAce - Cricket Prediction Platform
 
-A comprehensive cricket prediction platform with tournament management, user predictions, leaderboards, and admin controls.
+A comprehensive cricket prediction platform built with React, Node.js, and PostgreSQL.
 
 ## Features
 
-### Core Features
-- User authentication and registration
-- Tournament creation and management
-- Team management with editing capabilities
-- Match creation and predictions
-- Real-time leaderboards
-- Points management system
+- 🏏 Cricket match predictions
+- 👥 User registration and authentication  
+- 🏆 Tournament management
+- 📊 Leaderboards and points system
+- 👨‍💼 Admin panel for match management
+- 🎯 Toss and match winner predictions
+- 📱 Responsive design
+- 🔒 Secure user sessions
 
-### Advanced Features
-- Premium tournament access
-- View counter tracking
-- Backup and restore functionality
-- Real-time match updates
-- Admin control panel
-- Database management tools
+## Tech Stack
 
-### Recent Improvements
-- Enhanced team editing functionality
-- Improved points management
-- Premium tournament user selections
-- View counter implementation
-- Backup/restore capabilities
-- Match update features
-- Security enhancements
+### Frontend
+- React 18 with TypeScript
+- Tailwind CSS + shadcn/ui components
+- Wouter for routing
+- React Query for state management
+- Vite for building
 
-## Installation
+### Backend  
+- Node.js with Express
+- PostgreSQL database
+- Drizzle ORM
+- Passport.js authentication
+- WebSocket support
+- Session management
 
-### For cPanel Hosting
+### Deployment
+- Optimized for cPanel hosting
+- PM2 process management
+- Production builds with esbuild
 
-1. Upload all files to your cPanel directory
-2. SSH into your server and navigate to the directory
-3. Copy `.env.example` to `.env` and update database credentials
-4. Run: `./deploy-cpanel.sh`
+## Quick Start
 
-### For Development
+### Development
+```bash
+npm install
+npm run dev
+```
 
-1. Clone the repository
-2. Copy `.env.example` to `.env` and configure
-3. Run: `npm install`
-4. Run: `npm run dev`
+### Production Build
+```bash
+npm run build
+npm start
+```
 
-## Database Setup
+### Database Setup
+```bash
+npm run db:push
+```
 
-The application uses PostgreSQL with Drizzle ORM. Tables are created automatically on first run.
+## Environment Variables
 
-Required environment variables:
-- `DATABASE_URL`: PostgreSQL connection string
-- `SESSION_SECRET`: Strong secret for session encryption
-- `PORT`: Server port (default: 5000)
-- `NODE_ENV`: Environment (development/production)
+```env
+NODE_ENV=production
+DATABASE_URL=your_postgres_connection_string
+SESSION_SECRET=your_session_secret
+PORT=5000
+HOST=0.0.0.0
+```
 
-## API Endpoints
+## Project Structure
 
-- `/api/health` - Server health check
-- `/api/user` - User management
-- `/api/tournaments` - Tournament operations
-- `/api/matches` - Match management
-- `/api/predictions` - User predictions
-- `/api/leaderboard` - Rankings and scores
+```
+├── client/src/          # React frontend
+├── server/              # Node.js backend  
+├── shared/              # Shared types and schemas
+├── dist/                # Built files (generated)
+└── uploads/             # User uploaded files
+```
 
-## Technology Stack
+## Deployment
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend**: Node.js, Express, TypeScript
-- **Database**: PostgreSQL with Drizzle ORM
-- **Build**: Vite for frontend, esbuild for backend
-- **Deployment**: PM2 for process management
+See `GITHUB-UPDATE-INSTRUCTIONS.md` for complete deployment guide to cPanel hosting.
 
-This is the complete, production-ready cricket prediction platform.
+## License
+
+MIT License

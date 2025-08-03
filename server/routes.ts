@@ -76,7 +76,32 @@ const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Add health check endpoint for deployment (before other routes)
+  // Add root health check endpoint only for production API health checks
+  // In development, this will be overridden by Vite, in production it serves as backup health check
+  app.get('/', (req: Request, res: Response, next: NextFunction) => {
+    // Only serve health check for deployment/health check requests, not browser requests
+    const userAgent = req.get('User-Agent') || '';
+    const acceptHeader = req.get('Accept') || '';
+    
+    // If it looks like a health check request (not a browser), return JSON
+    if (userAgent.includes('curl') || userAgent.includes('health') || 
+        acceptHeader.includes('application/json') || 
+        req.query.health !== undefined) {
+      return res.status(200).json({ 
+        status: 'healthy', 
+        message: 'CricProAce Server is running',
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        service: 'cricproace-api',
+        version: '1.0.0'
+      });
+    }
+    
+    // For browser requests, let it fall through to static file serving
+    next();
+  });
+
+  // Add health check endpoint for deployment
   app.get('/health', (req: Request, res: Response) => {
     res.status(200).json({ 
       status: 'healthy', 

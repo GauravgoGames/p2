@@ -1,7 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
 import helmet from "helmet";
+import path from "path";
+import fs from "fs";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import hpp from "hpp";
@@ -204,6 +205,49 @@ app.use((req, res, next) => {
   next();
 });
 
+// Log function for production compatibility
+function log(message: string, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+
+// Production static file serving
+function serveStatic(app: express.Application) {
+  const distPath = path.resolve(process.cwd(), "dist/public");
+
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+    );
+  }
+
+  app.use(express.static(distPath));
+
+  // fall through to index.html if the file doesn't exist
+  app.use("*", (_req, res) => {
+    res.sendFile(path.resolve(distPath, "index.html"));
+  });
+}
+
+// Development Vite setup (only in development)
+async function setupVite(app: express.Application, server: any) {
+  if (process.env.NODE_ENV !== 'development') return;
+  
+  try {
+    const { setupVite: setupViteFromFile } = await import("./vite.js");
+    return setupViteFromFile(app as any, server);
+  } catch (error) {
+    console.warn("Vite setup failed, falling back to static serving:", error);
+    serveStatic(app);
+  }
+}
+
 (async () => {
   const server = await registerRoutes(app);
 
@@ -218,15 +262,13 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000 for Replit
-  // or use PORT environment variable for deployments
-  // this serves both the API and the client.
+  // Use PORT environment variable or default to 5000
   const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
   const host = "0.0.0.0"; // Listen on all interfaces for deployment compatibility
   

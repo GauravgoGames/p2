@@ -1,10 +1,6 @@
-node_modules/
-dist/
-.env
-*.log
-uploads/
-backups/
+node_modules
+dist
 .DS_Store
-.vscode/
-*.tgz
+server/public
+vite.config.ts.*
 *.tar.gz
