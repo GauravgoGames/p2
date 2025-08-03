@@ -1,50 +1,49 @@
-# 🏏 Cricket Pro Ace - Complete Platform
+# Cricket Pro Ace - Complete Platform
 
-**Ready-to-deploy cricket prediction platform for cPanel hosting**
+A comprehensive cricket prediction platform with tournament management, user predictions, leaderboards, and admin controls.
 
 ## Features
-- ✅ Tournament Management
-- ✅ Team Creation & Editing  
-- ✅ Match Predictions
-- ✅ User Leaderboards
-- ✅ Points Management System
-- ✅ Premium Tournament Access
-- ✅ View Counter Tracking
-- ✅ Backup & Restore Tools
-- ✅ Real-time Match Updates
-- ✅ Admin Control Panel
 
-## Quick Installation
+### Core Features
+- User authentication and registration
+- Tournament creation and management
+- Team management with editing capabilities
+- Match creation and predictions
+- Real-time leaderboards
+- Points management system
 
-### 1. Upload to cPanel
-Upload all files to your domain directory (e.g., `expertlive.pro-ace-predictions.co.uk`)
+### Advanced Features
+- Premium tournament access
+- View counter tracking
+- Backup and restore functionality
+- Real-time match updates
+- Admin control panel
+- Database management tools
 
-### 2. Deploy
-```bash
-chmod +x deploy-cpanel.sh
-./deploy-cpanel.sh
-```
+### Recent Improvements
+- Enhanced team editing functionality
+- Improved points management
+- Premium tournament user selections
+- View counter implementation
+- Backup/restore capabilities
+- Match update features
+- Security enhancements
 
-### 3. Done!
-Your cricket prediction platform is now live.
+## Installation
 
-## Manual Installation
+### For cPanel Hosting
 
-### Install Dependencies
-```bash
-npm install
-```
+1. Upload all files to your cPanel directory
+2. SSH into your server and navigate to the directory
+3. Copy `.env.example` to `.env` and update database credentials
+4. Run: `./deploy-cpanel.sh`
 
-### Setup Environment
-```bash
-cp .env.example .env
-# Edit .env with your database credentials
-```
+### For Development
 
-### Start Server
-```bash
-npm run dev
-```
+1. Clone the repository
+2. Copy `.env.example` to `.env` and configure
+3. Run: `npm install`
+4. Run: `npm run dev`
 
 ## Database Setup
 
@@ -54,18 +53,23 @@ Required environment variables:
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: Strong secret for session encryption
 - `PORT`: Server port (default: 5000)
-- `NODE_ENV`: Environment mode
+- `NODE_ENV`: Environment (development/production)
 
-## Default Login
-- **Username:** admin
-- **Password:** admin123
+## API Endpoints
+
+- `/api/health` - Server health check
+- `/api/user` - User management
+- `/api/tournaments` - Tournament operations
+- `/api/matches` - Match management
+- `/api/predictions` - User predictions
+- `/api/leaderboard` - Rankings and scores
 
 ## Technology Stack
-- **Frontend:** React 18, TypeScript, Tailwind CSS, shadcn/ui
-- **Backend:** Node.js, Express, TypeScript  
-- **Database:** PostgreSQL with Drizzle ORM
-- **Build:** Vite for frontend, tsx for backend
-- **Process Management:** PM2
 
-## Support
-This is a complete, production-ready cricket prediction platform.
+- **Frontend**: React 18, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Build**: Vite for frontend, esbuild for backend
+- **Deployment**: PM2 for process management
+
+This is the complete, production-ready cricket prediction platform.

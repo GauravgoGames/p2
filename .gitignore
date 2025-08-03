@@ -3,6 +3,7 @@ dist/
 .env
 *.log
 uploads/
+backups/
 .DS_Store
 .vscode/
 *.tgz
