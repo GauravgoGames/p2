@@ -268,8 +268,8 @@ async function setupVite(app: express.Application, server: any) {
     serveStatic(app);
   }
 
-  // Use PORT environment variable or default to 5000
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+  // Use PORT environment variable or default to 3000 (standard Node.js port)
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const host = "0.0.0.0"; // Listen on all interfaces for deployment compatibility
   
   server.listen({
