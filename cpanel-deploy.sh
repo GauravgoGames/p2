@@ -1,206 +1,102 @@
 #!/bin/bash
 
 # CricProAce cPanel Deployment Script
-# This script automates the deployment process for cPanel
+# Run this script on your cPanel server after cloning the repository
 
-echo "========================================="
-echo "CricProAce Deployment Script for cPanel"
-echo "========================================="
+echo "🚀 Starting CricProAce cPanel Deployment..."
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Step 1: Install Node.js dependencies
+echo "📦 Installing Node.js dependencies..."
+npm install --production
 
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}[OK]${NC} $1"
-}
+# Step 2: Create production environment file
+echo "⚙️ Creating production environment configuration..."
+cat > .env << EOF
+# Database Configuration
+DATABASE_URL=postgres://rzi5hw1x8nm8_n2u:Gaurav16D@localhost:5432/rzi5hw1x8nm8_n2
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Security
+SESSION_SECRET=s3cr3t_KN4n5cP9m2Xz7Qv8EjLd0RgUwTyHaB
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+# Server Configuration
+NODE_ENV=production
+PORT=5000
+EOF
 
-# Check if we're in the correct directory
-if [ ! -f "package.json" ]; then
-    print_error "package.json not found. Please run this script from the project root directory."
-    exit 1
-fi
+# Step 3: Set proper file permissions
+echo "🔒 Setting file permissions..."
+chmod -R 755 .
+chmod -R 644 *.js *.json *.md *.ts
+chmod +x cpanel-deploy.sh
 
-# Step 1: Build the application
-echo ""
-echo "Step 1: Building the application..."
+# Step 4: Build the application
+echo "🔨 Building application..."
 npm run build
 
-if [ $? -eq 0 ]; then
-    print_status "Build completed successfully"
-else
-    print_error "Build failed. Please check the error messages above."
-    exit 1
-fi
+# Step 5: Setup database schema
+echo "🗄️ Setting up database schema..."
+npm run db:push
 
-# Step 2: Create production environment file if it doesn't exist
-if [ ! -f ".env.example" ]; then
-    echo ""
-    echo "Step 2: Creating .env.example file..."
-    cat > .env.example << EOF
-# Database Configuration
-DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-PGHOST=localhost
-PGPORT=5432
-PGDATABASE=database_name
-PGUSER=username
-PGPASSWORD=password
-
-# Application Settings
-NODE_ENV=production
-SESSION_SECRET=your-random-session-secret-here
-PORT=5000
-
-# Optional: External Services (add as needed)
-# OPENAI_API_KEY=your-api-key-here
-# STRIPE_SECRET_KEY=your-stripe-key-here
+# Step 6: Create startup script for cPanel
+echo "📝 Creating startup script..."
+cat > app.js << EOF
+// Production startup file for cPanel
+require('dotenv').config();
+require('./dist/index.js');
 EOF
-    print_status ".env.example created"
-else
-    print_status ".env.example already exists"
-fi
 
-# Step 3: Create .htaccess file for Apache
-echo ""
-echo "Step 3: Creating .htaccess file..."
-cat > .htaccess << EOF
-DirectoryIndex disabled
-RewriteEngine On
+# Step 7: Create .htaccess for static file optimization
+echo "⚡ Creating .htaccess for optimization..."
+cat > .htaccess << 'EOF'
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+</IfModule>
 
-# Handle Node.js application
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ http://127.0.0.1:\${NODE_PORT}/$1 [P,L]
+# Cache static files
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access 1 month"
+    ExpiresByType image/jpeg "access 1 month"
+    ExpiresByType image/gif "access 1 month"
+    ExpiresByType image/png "access 1 month"
+    ExpiresByType text/css "access 1 month"
+    ExpiresByType application/pdf "access 1 month"
+    ExpiresByType text/javascript "access 1 month"
+    ExpiresByType application/javascript "access 1 month"
+</IfModule>
 
 # Security headers
 <IfModule mod_headers.c>
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-XSS-Protection "1; mode=block"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Content-Type-Options nosniff
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
-
-# Prevent access to sensitive files
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-<Files ~ "(\.env|\.git|\.gitignore|package-lock\.json)$">
-    Order allow,deny
-    Deny from all
-</Files>
 EOF
-print_status ".htaccess created"
 
-# Step 4: Create deployment information file
+echo "✅ Deployment preparation complete!"
 echo ""
-echo "Step 4: Creating deployment info..."
-cat > DEPLOYMENT.md << EOF
-# CricProAce Deployment Information
-
-## Version Information
-- Deployment Date: $(date)
-- Node.js Version Required: 18.x or higher
-- Database: PostgreSQL
-
-## Features Included in This Release
-- User authentication with secure password reset
-- Tournament and match management
-- Real-time prediction system with percentage bar graphs
-- Social engagement features (Love/View counts)
-- Comprehensive leaderboard with 3-tier ranking
-- WordPress integration support
-- Admin panel with verification system
-- Support ticket system
-- Security features (rate limiting, CSRF protection, input validation)
-- Embeddable widgets for external sites
-
-## Default Admin Credentials
-- Username: admin
-- Password: admin123
-
-**IMPORTANT**: Change these credentials immediately after deployment!
-
-## Post-Deployment Checklist
-- [ ] Change admin password
-- [ ] Configure environment variables in cPanel
-- [ ] Set up SSL certificate
-- [ ] Test all major features
-- [ ] Configure automated backups
-- [ ] Review security settings
-
-## Database Schema
-The application will automatically create all required tables on first run.
-No manual SQL execution is needed.
-EOF
-print_status "Deployment information created"
-
-# Step 5: Prepare files for deployment
+echo "📋 Next Steps for cPanel:"
+echo "1. Go to cPanel → Software → Node.js Apps"
+echo "2. Create New App with these settings:"
+echo "   - Startup File: app.js"
+echo "   - Application Mode: production"
+echo "   - Add Environment Variables from .env file"
+echo "3. Start the application"
+echo "4. Visit your domain to verify deployment"
 echo ""
-echo "Step 5: Cleaning up unnecessary files..."
-
-# Create a deployment directory
-mkdir -p deploy-ready
-
-# Copy necessary files
-cp -r dist deploy-ready/
-cp -r public deploy-ready/
-cp package.json deploy-ready/
-cp package-lock.json deploy-ready/
-cp .env.example deploy-ready/
-cp .htaccess deploy-ready/
-cp DEPLOYMENT.md deploy-ready/
-cp DEPLOYMENT_GUIDE.md deploy-ready/
-cp README.md deploy-ready/
-cp SECURITY.md deploy-ready/
-cp WORDPRESS_INTEGRATION.md deploy-ready/
-
-print_status "Files prepared for deployment"
-
-# Step 6: Create deployment archive
+echo "🔑 Default Admin Credentials:"
+echo "   Username: admin"
+echo "   Password: admin123"
 echo ""
-echo "Step 6: Creating deployment archive..."
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-ARCHIVE_NAME="cricproace_deploy_${TIMESTAMP}.zip"
-
-cd deploy-ready
-zip -r "../${ARCHIVE_NAME}" .
-cd ..
-
-if [ -f "${ARCHIVE_NAME}" ]; then
-    print_status "Deployment archive created: ${ARCHIVE_NAME}"
-    echo ""
-    echo "Archive contains:"
-    unzip -l "${ARCHIVE_NAME}" | head -20
-    echo "..."
-else
-    print_error "Failed to create deployment archive"
-    exit 1
-fi
-
-# Clean up temporary directory
-rm -rf deploy-ready
-
-echo ""
-echo "========================================="
-echo "Deployment preparation complete!"
-echo "========================================="
-echo ""
-echo "Next steps:"
-echo "1. Upload ${ARCHIVE_NAME} to your cPanel"
-echo "2. Extract it in your desired directory"
-echo "3. Follow the instructions in DEPLOYMENT_GUIDE.md"
-echo ""
-print_warning "Remember to backup your existing installation before deploying!"
+echo "📊 Your database: rzi5hw1x8nm8_n2"
+echo "🌐 Application will run on port 5000"
