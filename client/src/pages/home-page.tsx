@@ -13,8 +13,7 @@ import { FirstTimeLoginPopup } from '@/components/first-time-login-popup';
 import VerificationPopup from '@/components/verification-popup';
 import { useAuth } from '@/hooks/use-auth';
 import { useVerificationPopup } from '@/hooks/use-verification-popup';
-import { Trophy, Calendar, Users, Crown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Trophy, Calendar, Users } from 'lucide-react';
 
 type MatchWithTeams = Match & {
   team1: Team;
@@ -58,29 +57,6 @@ const HomePage = () => {
       if (!res.ok) throw new Error('Failed to fetch tournaments');
       return res.json();
     }
-  });
-
-  // Get premium access for each premium tournament
-  const { data: premiumAccess } = useQuery({
-    queryKey: ['/api/premium-access'],
-    queryFn: async () => {
-      if (!tournaments || !user) return {};
-      
-      const premiumTournaments = tournaments.filter(t => t.isPremium);
-      const accessPromises = premiumTournaments.map(async (tournament) => {
-        const response = await fetch(`/api/tournaments/${tournament.id}/premium-access`);
-        if (!response.ok) return { tournamentId: tournament.id, isPremium: false };
-        const data = await response.json();
-        return { tournamentId: tournament.id, isPremium: data.isPremium };
-      });
-      
-      const results = await Promise.all(accessPromises);
-      return results.reduce((acc, result) => {
-        acc[result.tournamentId] = result.isPremium;
-        return acc;
-      }, {} as Record<number, boolean>);
-    },
-    enabled: !!tournaments && !!user,
   });
 
   // Check for first-time login and show popup for non-verified users
@@ -174,15 +150,7 @@ const HomePage = () => {
                       />
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-lg">{tournament.name}</CardTitle>
-                    {tournament.isPremium && (
-                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                        <Crown className="h-3 w-3 mr-1" />
-                        Premium
-                      </Badge>
-                    )}
-                  </div>
+                  <CardTitle className="text-lg">{tournament.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {tournament.description && (
@@ -251,61 +219,37 @@ const HomePage = () => {
           {isLoadingMatches ? (
             renderMatchesSkeleton()
           ) : activeTab === 'all' ? (
-            matches && matches.slice(0, 9).map(match => {
-              const tournament = tournaments?.find(t => t.id === match.tournamentId);
-              const hasAccess = !tournament?.isPremium || (match.tournamentId && premiumAccess?.[match.tournamentId]);
-              return (
-                <MatchCard 
-                  key={match.id} 
-                  match={match} 
-                  userPrediction={getUserPredictionForMatch(match.id)}
-                  tournament={tournament}
-                  hasAccess={hasAccess}
-                />
-              );
-            })
+            matches && matches.slice(0, 9).map(match => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                userPrediction={getUserPredictionForMatch(match.id)}
+              />
+            ))
           ) : activeTab === 'ongoing' && ongoingMatches.length > 0 ? (
-            ongoingMatches.map(match => {
-              const tournament = tournaments?.find(t => t.id === match.tournamentId);
-              const hasAccess = !tournament?.isPremium || (match.tournamentId && premiumAccess?.[match.tournamentId]);
-              return (
-                <MatchCard 
-                  key={match.id} 
-                  match={match} 
-                  userPrediction={getUserPredictionForMatch(match.id)}
-                  tournament={tournament}
-                  hasAccess={hasAccess}
-                />
-              );
-            })
+            ongoingMatches.map(match => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                userPrediction={getUserPredictionForMatch(match.id)}
+              />
+            ))
           ) : activeTab === 'upcoming' && upcomingMatches.length > 0 ? (
-            upcomingMatches.map(match => {
-              const tournament = tournaments?.find(t => t.id === match.tournamentId);
-              const hasAccess = !tournament?.isPremium || (match.tournamentId && premiumAccess?.[match.tournamentId]);
-              return (
-                <MatchCard 
-                  key={match.id} 
-                  match={match} 
-                  userPrediction={getUserPredictionForMatch(match.id)}
-                  tournament={tournament}
-                  hasAccess={hasAccess}
-                />
-              );
-            })
+            upcomingMatches.map(match => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                userPrediction={getUserPredictionForMatch(match.id)}
+              />
+            ))
           ) : activeTab === 'completed' && completedMatches.length > 0 ? (
-            completedMatches.map(match => {
-              const tournament = tournaments?.find(t => t.id === match.tournamentId);
-              const hasAccess = !tournament?.isPremium || (match.tournamentId && premiumAccess?.[match.tournamentId]);
-              return (
-                <MatchCard 
-                  key={match.id} 
-                  match={match} 
-                  userPrediction={getUserPredictionForMatch(match.id)}
-                  tournament={tournament}
-                  hasAccess={hasAccess}
-                />
-              );
-            })
+            completedMatches.map(match => (
+              <MatchCard 
+                key={match.id} 
+                match={match} 
+                userPrediction={getUserPredictionForMatch(match.id)}
+              />
+            ))
           ) : (
             <div className="col-span-3 text-center py-8 text-neutral-500">
               No {activeTab === 'all' ? '' : activeTab} matches found

@@ -18,7 +18,7 @@ const createUploadDirectories = () => {
     try {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
-
+        console.log(`Created directory: ${dir}`);
       }
     } catch (error) {
       console.error(`Error creating directory ${dir}:`, error);

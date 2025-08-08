@@ -207,26 +207,26 @@ const Navbar = () => {
                         {user.role === 'admin' && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin">Admin Dashboard</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin'}>
+                              Admin Dashboard
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin/matches">Manage Matches</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/matches'}>
+                              Manage Matches
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin/teams">Manage Teams</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/teams'}>
+                              Manage Teams
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin/tournaments">Manage Tournaments</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/tournaments'}>
+                              Manage Tournaments
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin/users">Manage Users</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/users'}>
+                              Manage Users
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin/settings">Site Settings</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/settings'}>
+                              Site Settings
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href="/admin/support">Ticket Management</Link>
+                            <DropdownMenuItem onClick={() => window.location.href = '/admin/support'}>
+                              Ticket Management
                             </DropdownMenuItem>
                           </>
                         )}
@@ -398,34 +398,42 @@ const Navbar = () => {
                 </div>
                 {user.role === 'admin' && (
                   <>
-                    <Link 
-                      href="/admin"
-                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                    <div 
+                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 
+                      onClick={() => {
+                        window.location.href = '/admin';
+                        setIsMobileMenuOpen(false);
+                      }}
                     >
                       Admin Dashboard
-                    </Link>
-                    <Link 
-                      href="/admin/matches"
-                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                    </div>
+                    <div 
+                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 
+                      onClick={() => {
+                        window.location.href = '/admin/matches';
+                        setIsMobileMenuOpen(false);
+                      }}
                     >
                       Manage Matches
-                    </Link>
-                    <Link 
-                      href="/admin/users"
-                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                    </div>
+                    <div 
+                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 
+                      onClick={() => {
+                        window.location.href = '/admin/users';
+                        setIsMobileMenuOpen(false);
+                      }}
                     >
                       Manage Users
-                    </Link>
-                    <Link 
-                      href="/admin/teams"
-                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100"
-                      onClick={() => setIsMobileMenuOpen(false)}
+                    </div>
+                    <div 
+                      className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 
+                      onClick={() => {
+                        window.location.href = '/admin/teams';
+                        setIsMobileMenuOpen(false);
+                      }}
                     >
                       Manage Teams
-                    </Link>
+                    </div>
                     <div 
                       className="block px-4 py-2 text-base font-medium text-neutral-800 hover:bg-neutral-100 cursor-pointer" 
                       onClick={() => {

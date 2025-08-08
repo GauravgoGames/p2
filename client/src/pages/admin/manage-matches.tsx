@@ -57,7 +57,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
@@ -89,24 +88,20 @@ const newMatchSchema = z.object({
   discussionLink: z.string().url("Please enter a valid URL").optional().or(z.literal('')),
 });
 
-// Comprehensive match update schema
-const updateMatchSchema = z.object({
-  location: z.string().min(1, "Location is required"),
-  matchDate: z.date({
-    required_error: "Match date is required",
-  }),
-  status: z.enum(['upcoming', 'ongoing', 'completed', 'tie', 'void']).default('upcoming'),
+// Update match result schema with conditional validation
+const updateResultSchema = z.object({
   tossWinnerId: z.coerce.number().positive("Please select the toss winner").optional(),
   matchWinnerId: z.coerce.number().positive("Please select the match winner").optional(),
   team1Score: z.string().optional(),
   team2Score: z.string().optional(),
   resultSummary: z.string().optional(),
-  discussionLink: z.string().url("Please enter a valid URL").optional().or(z.literal('')),
+  status: z.enum(['upcoming', 'ongoing', 'completed', 'tie', 'void']).default('completed'),
 }).refine((data) => {
-  // For completed matches, require result summary
-  if (data.status === 'completed' && data.matchWinnerId) {
+  // For completed matches, require result summary and scores are recommended
+  if (data.status === 'completed') {
     return data.resultSummary && data.resultSummary.length > 0;
   }
+  // For void and tie matches, scores and result summary are optional
   return true;
 }, {
   message: "Result summary is required for completed matches",
@@ -194,17 +189,13 @@ const ManageMatches = () => {
     },
   });
 
-  // Update match form
-  const updateMatchForm = useForm<z.infer<typeof updateMatchSchema>>({
-    resolver: zodResolver(updateMatchSchema),
+  // Update match result form
+  const updateResultForm = useForm<z.infer<typeof updateResultSchema>>({
+    resolver: zodResolver(updateResultSchema),
     defaultValues: {
-      status: 'upcoming',
+      status: 'completed',
     },
   });
-
-  // Get tournament info for the selected match
-  const selectedTournament = tournaments?.find(t => t.id === selectedMatch?.tournamentId);
-  const hideTossPredictions = selectedTournament?.hideTossPredictions || false;
 
   // Create match mutation
   const createMatchMutation = useMutation({
@@ -230,20 +221,20 @@ const ManageMatches = () => {
     },
   });
 
-  // Update match mutation (comprehensive)
+  // Update match result mutation
   const updateMatchMutation = useMutation({
-    mutationFn: async (data: { id: number; matchData: z.infer<typeof updateMatchSchema> }) => {
-      const res = await apiRequest('PUT', `/api/matches/${data.id}`, data.matchData);
+    mutationFn: async (data: { id: number; result: z.infer<typeof updateResultSchema> }) => {
+      const res = await apiRequest('PATCH', `/api/matches/${data.id}`, data.result);
       return res.json();
     },
     onSuccess: () => {
       toast({
         title: 'Match Updated',
-        description: 'The match has been successfully updated',
+        description: 'The match result has been successfully updated',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
       setUpdateDialogOpen(false);
-      updateMatchForm.reset();
+      updateResultForm.reset();
       setSelectedMatch(null);
     },
     onError: (error: Error) => {
@@ -330,24 +321,20 @@ const ManageMatches = () => {
     }
   };
 
-  const onUpdateMatchSubmit = (data: z.infer<typeof updateMatchSchema>) => {
+  const onUpdateResultSubmit = (data: z.infer<typeof updateResultSchema>) => {
     if (!selectedMatch) return;
-    updateMatchMutation.mutate({ id: selectedMatch.id, matchData: data });
+    updateMatchMutation.mutate({ id: selectedMatch.id, result: data });
   };
 
   const handleUpdateMatch = (match: MatchWithTeams) => {
     setSelectedMatch(match);
-    // Populate form with existing match data
-    updateMatchForm.reset({
-      location: match.location || '',
-      matchDate: new Date(match.matchDate),
-      status: match.status,
+    updateResultForm.reset({
       tossWinnerId: match.tossWinnerId || undefined,
       matchWinnerId: match.matchWinnerId || undefined,
       team1Score: match.team1Score || '',
       team2Score: match.team2Score || '',
       resultSummary: match.resultSummary || '',
-      discussionLink: match.discussionLink || '',
+      status: match.status,
     });
     setUpdateDialogOpen(true);
   };
@@ -722,191 +709,120 @@ const ManageMatches = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Update Match Dialog */}
+      {/* Update Match Result Dialog */}
       {selectedMatch && (
         <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Update Match</DialogTitle>
+              <DialogTitle>Update Match Result</DialogTitle>
               <DialogDescription>
-                Update match details and results for {selectedMatch.team1.name} vs {selectedMatch.team2.name}
+                Set the final result for {selectedMatch.team1.name} vs {selectedMatch.team2.name}
               </DialogDescription>
             </DialogHeader>
 
-            <Form {...updateMatchForm}>
-              <form onSubmit={updateMatchForm.handleSubmit(onUpdateMatchSubmit)} className="space-y-6">
+            <Form {...updateResultForm}>
+              <form onSubmit={updateResultForm.handleSubmit(onUpdateResultSubmit)} className="space-y-6">
                 <FormField
-                  control={updateMatchForm.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
+                control={updateResultForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Match Status</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (value === 'void') {
+                          updateResultForm.setValue('tossWinnerId', undefined);
+                          updateResultForm.setValue('matchWinnerId', undefined);
+                        }
+                      }}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
-                        <Input placeholder="e.g. Melbourne Cricket Ground" {...field} />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select match status" />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <SelectContent>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="tie">Tie</SelectItem>
+                        <SelectItem value="void">Void</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
+              {updateResultForm.watch('status') !== 'void' && (
                 <FormField
-                  control={updateMatchForm.control}
-                  name="matchDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Match Date & Time</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP HH:mm")
-                              ) : (
-                                <span>Pick a date and time</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                          />
-                          <div className="p-3 border-t border-border">
-                            <Input
-                              type="time"
-                              onChange={(e) => {
-                                const [hours, minutes] = e.target.value.split(':').map(Number);
-                                const newDate = field.value ? new Date(field.value) : new Date();
-                                newDate.setHours(hours || 0);
-                                newDate.setMinutes(minutes || 0);
-                                field.onChange(newDate);
-                              }}
-                              defaultValue={field.value ? format(field.value, "HH:mm") : ""}
-                            />
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={updateMatchForm.control}
-                  name="status"
+                  control={updateResultForm.control}
+                  name="tossWinnerId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Match Status</FormLabel>
+                      <FormLabel>Toss Winner</FormLabel>
                       <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          if (value === 'void') {
-                            updateMatchForm.setValue('tossWinnerId', undefined);
-                            updateMatchForm.setValue('matchWinnerId', undefined);
-                          }
-                        }}
-                        defaultValue={field.value}
+                        onValueChange={field.onChange}
+                        defaultValue={field.value?.toString()}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select match status" />
+                            <SelectValue placeholder="Select toss winner" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="upcoming">Upcoming</SelectItem>
-                          <SelectItem value="ongoing">Ongoing</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="tie">Tie</SelectItem>
-                          <SelectItem value="void">Void</SelectItem>
+                          <SelectItem value={selectedMatch.team1Id.toString()}>
+                            {selectedMatch.team1.name}
+                          </SelectItem>
+                          <SelectItem value={selectedMatch.team2Id.toString()}>
+                            {selectedMatch.team2.name}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              )}
 
-                {updateMatchForm.watch('status') !== 'void' && !hideTossPredictions && (
+              {updateResultForm.watch('status') === 'completed' && (
+                <FormField
+                  control={updateResultForm.control}
+                  name="matchWinnerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Match Winner</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value?.toString()}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select match winner" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={selectedMatch.team1Id.toString()}>
+                            {selectedMatch.team1.name}
+                          </SelectItem>
+                          <SelectItem value={selectedMatch.team2Id.toString()}>
+                            {selectedMatch.team2.name}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Score fields - only show when not void or tie */}
+              {updateResultForm.watch('status') !== 'void' && updateResultForm.watch('status') !== 'tie' && (
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
-                    control={updateMatchForm.control}
-                    name="tossWinnerId"
+                    control={updateResultForm.control}
+                    name="team1Score"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Toss Winner</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select toss winner" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={selectedMatch.team1Id.toString()}>
-                              {selectedMatch.team1.name}
-                            </SelectItem>
-                            <SelectItem value={selectedMatch.team2Id.toString()}>
-                              {selectedMatch.team2.name}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {(updateMatchForm.watch('status') === 'completed' || updateMatchForm.watch('status') === 'ongoing') && (
-                  <FormField
-                    control={updateMatchForm.control}
-                    name="matchWinnerId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Match Winner</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value?.toString()}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select match winner" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={selectedMatch.team1Id.toString()}>
-                              {selectedMatch.team1.name}
-                            </SelectItem>
-                            <SelectItem value={selectedMatch.team2Id.toString()}>
-                              {selectedMatch.team2.name}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Score fields - only show when not void or tie */}
-                {updateMatchForm.watch('status') !== 'void' && updateMatchForm.watch('status') !== 'tie' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={updateMatchForm.control}
-                      name="team1Score"
-                      render={({ field }) => (
                       <FormItem>
                         <FormLabel>{selectedMatch.team1.name} Score</FormLabel>
                         <FormControl>
@@ -917,74 +833,53 @@ const ManageMatches = () => {
                     )}
                   />
 
-                    <FormField
-                      control={updateMatchForm.control}
-                      name="team2Score"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{selectedMatch.team2.name} Score</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. 165/9 (20.0)" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-
-                {/* Result Summary - only show when not void */}
-                {updateMatchForm.watch('status') !== 'void' && (
                   <FormField
-                    control={updateMatchForm.control}
-                    name="resultSummary"
+                    control={updateResultForm.control}
+                    name="team2Score"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>
-                          Result Summary {updateMatchForm.watch('status') === 'completed' && '*'}
-                        </FormLabel>
+                        <FormLabel>{selectedMatch.team2.name} Score</FormLabel>
                         <FormControl>
-                          <textarea 
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            placeholder={
-                              updateMatchForm.watch('status') === 'tie' 
-                                ? "e.g. Match tied" 
-                                : "e.g. India won by 21 runs"
-                            } 
-                            {...field} 
-                          />
+                          <Input placeholder="e.g. 165/9 (20.0)" {...field} />
                         </FormControl>
-                        <FormDescription>
-                          {updateMatchForm.watch('status') === 'completed' 
-                            ? "Required: Brief summary of the match result"
-                            : "Optional: Brief summary of the match result"
-                          }
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
+                </div>
+              )}
 
+              {/* Result Summary - only show when not void */}
+              {updateResultForm.watch('status') !== 'void' && (
                 <FormField
-                  control={updateMatchForm.control}
-                  name="discussionLink"
+                  control={updateResultForm.control}
+                  name="resultSummary"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Discussion Link</FormLabel>
+                      <FormLabel>
+                        Result Summary {updateResultForm.watch('status') === 'completed' && '*'}
+                      </FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="https://www.pro-ace-predictions.co.uk/discussion/match-topic" 
+                          placeholder={
+                            updateResultForm.watch('status') === 'tie' 
+                              ? "e.g. Match tied" 
+                              : "e.g. India won by 21 runs"
+                          } 
                           {...field} 
                         />
                       </FormControl>
                       <FormDescription>
-                        Link to discussion post page (optional)
+                        {updateResultForm.watch('status') === 'completed' 
+                          ? "Required: Brief summary of the match result"
+                          : "Optional: Brief summary of the match result"
+                        }
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              )}
 
                 <DialogFooter>
                   <Button 
@@ -998,7 +893,7 @@ const ManageMatches = () => {
                     type="submit" 
                     disabled={updateMatchMutation.isPending}
                   >
-                    {updateMatchMutation.isPending ? 'Updating...' : 'Update Match'}
+                    {updateMatchMutation.isPending ? 'Updating...' : 'Update Result'}
                   </Button>
                 </DialogFooter>
               </form>

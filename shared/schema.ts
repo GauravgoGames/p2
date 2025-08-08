@@ -28,7 +28,7 @@ export const users = pgTable("users", {
   proaceUserId: text("proace_user_id"),
   proaceDisqusId: text("proace_disqus_id"),
   securityCode: text("security_code"),
-
+  lovedByCount: integer("loved_by_count").default(0).notNull(),
   viewedByCount: integer("viewed_by_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -49,8 +49,6 @@ export const tournaments = pgTable("tournaments", {
   imageUrl: text("image_url"),
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
-  isPremium: boolean("is_premium").default(false).notNull(),
-  hideTossPredictions: boolean("hide_toss_predictions").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -59,14 +57,6 @@ export const tournamentTeams = pgTable("tournament_teams", {
   id: serial("id").primaryKey(),
   tournamentId: integer("tournament_id").notNull(),
   teamId: integer("team_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Premium users table - tracks which users can participate in premium tournaments
-export const premiumUsers = pgTable("premium_users", {
-  id: serial("id").primaryKey(),
-  tournamentId: integer("tournament_id").notNull(),
-  userId: integer("user_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -140,6 +130,13 @@ export const ticketMessages = pgTable("ticket_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// User loves table - tracks which users have loved other users
+export const userLoves = pgTable("user_loves", {
+  id: serial("id").primaryKey(),
+  loverId: integer("lover_id").references(() => users.id).notNull(),
+  lovedUserId: integer("loved_user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Schema validation
 export const insertUserSchema = createInsertSchema(users)
@@ -218,10 +215,6 @@ export const updateMatchResultSchema = createInsertSchema(matches).pick({
   team2Score: true,
   resultSummary: true,
   status: true,
-  matchDate: true,
-}).extend({
-  // Allow updating match date
-  matchDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
 });
 
 export const insertPredictionSchema = createInsertSchema(predictions).omit({
@@ -248,9 +241,6 @@ export type InsertTournament = z.infer<typeof insertTournamentSchema>;
 export type TournamentTeam = typeof tournamentTeams.$inferSelect;
 export type InsertTournamentTeam = z.infer<typeof insertTournamentTeamSchema>;
 
-export type PremiumUser = typeof premiumUsers.$inferSelect;
-export type InsertPremiumUser = typeof premiumUsers.$inferInsert;
-
 export type Match = typeof matches.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type UpdateMatchResult = z.infer<typeof updateMatchResultSchema>;
@@ -274,4 +264,5 @@ export interface TicketMessageWithUsername extends TicketMessage {
   username?: string;
 }
 
-
+export type UserLove = typeof userLoves.$inferSelect;
+export type InsertUserLove = typeof userLoves.$inferInsert;

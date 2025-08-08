@@ -61,11 +61,6 @@ export default function VoteBand({ matchId, team1Name, team2Name, type }: VoteBa
   const currentStats = stats?.[type];
   const hasData = currentStats && (currentStats.team1.predictions > 0 || currentStats.team2.predictions > 0);
 
-  // For toss predictions, if there are 0 predictions, don't render anything (premium tournaments with hidden toss)
-  if (type === 'toss' && currentStats && currentStats.team1.predictions === 0 && currentStats.team2.predictions === 0) {
-    return null;
-  }
-
   if (isLoading || !stats || !hasData) {
     return (
       <div className="vote-band bg-gray-50 rounded-lg p-3 mb-2">
@@ -85,7 +80,7 @@ export default function VoteBand({ matchId, team1Name, team2Name, type }: VoteBa
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${type === 'toss' ? 'bg-yellow-100' : 'bg-blue-100'}`}>
             <span className={`text-lg font-bold ${type === 'toss' ? 'text-yellow-600' : 'text-blue-600'}`}>
-              {type === 'toss' ? '🪙' : '🏏'}
+              {type === 'toss' ? '1' : '2'}
             </span>
           </div>
           <span className="text-sm font-medium text-gray-700">

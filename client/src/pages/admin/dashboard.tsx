@@ -26,9 +26,7 @@ import {
   User,
   Plus,
   Settings,
-  Trophy,
-  Shield,
-  Edit
+  Trophy
 } from 'lucide-react';
 
 // Types for dashboard statistics
@@ -116,12 +114,6 @@ const AdminDashboard = () => {
             className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
           >
             <Trophy className="mr-1 h-4 w-4" /> Manage Tournaments
-          </button>
-          <button 
-            onClick={() => window.location.href = '/admin/backup'}
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-          >
-            <Shield className="mr-1 h-4 w-4" /> Backup
           </button>
           <button 
             onClick={() => window.location.href = '/admin/settings'}
@@ -339,20 +331,12 @@ const AdminDashboard = () => {
               <p className="text-center py-4 text-neutral-500">No user data available</p>
             )}
             
-            <div className="mt-6 space-y-2">
+            <div className="mt-6">
               <button 
                 onClick={() => window.location.href = '/admin/users'}
                 className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
               >
-                <User className="w-4 h-4 mr-2" />
                 View All Users
-              </button>
-              <button 
-                onClick={() => window.location.href = '/admin/points'}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-amber-500 text-white hover:bg-amber-600 h-10 px-4 py-2 w-full"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Point Management
               </button>
             </div>
           </CardContent>

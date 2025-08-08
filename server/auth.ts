@@ -5,12 +5,6 @@ import session from "express-session";
 import bcrypt from 'bcryptjs';
 import { storage } from "./storage";
 import { User } from "@shared/schema";
-import { 
-  validatePasswordStrength,
-  checkAccountLockout,
-  recordFailedLogin,
-  clearFailedLogins
-} from './security-config';
 
 declare global {
   namespace Express {
@@ -38,7 +32,7 @@ export async function comparePasswords(supplied: string, stored: string): Promis
 }
 
 export function setupAuth(app: Express): void {
-  const sessionSecret = process.env.SESSION_SECRET || require('crypto').randomBytes(64).toString('hex');
+  const sessionSecret = process.env.SESSION_SECRET || 'proace-predictions-secret-key';
   
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
@@ -46,13 +40,8 @@ export function setupAuth(app: Express): void {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours (reduced from 30 days)
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: 'strict'
-    },
-    name: 'cricpro_sid', // Change from default session name
-    rolling: true // Reset expiry on activity
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    }
   };
 
   app.set("trust proxy", 1);
@@ -63,26 +52,22 @@ export function setupAuth(app: Express): void {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // Check for account lockout first
-        if (checkAccountLockout(username)) {
-          return done(null, false, { message: 'Account temporarily locked due to too many failed login attempts' });
-        }
-
+        console.log(`Attempting login for user: ${username}`);
         const user = await storage.getUserByUsername(username);
+        console.log(`User found:`, user ? 'Yes' : 'No');
         
         if (!user) {
-          recordFailedLogin(username);
-          return done(null, false, { message: 'Invalid credentials' });
+          console.log('User not found');
+          return done(null, false);
         }
         
         const passwordMatch = await comparePasswords(password, user.password);
+        console.log(`Password match:`, passwordMatch ? 'Yes' : 'No');
         
         if (!passwordMatch) {
-          recordFailedLogin(username);
-          return done(null, false, { message: 'Invalid credentials' });
+          return done(null, false);
         } else {
-          // Clear failed login attempts on successful login
-          clearFailedLogins(username);
+          // @ts-ignore - Type issue with returned user format
           return done(null, user);
         }
       } catch (error) {
@@ -117,10 +102,9 @@ export function setupAuth(app: Express): void {
         return res.status(400).json({ message: "Username must be 3-20 characters and contain only letters, numbers, and underscores" });
       }
       
-      // Enhanced password strength validation
-      const passwordValidation = validatePasswordStrength(password);
-      if (!passwordValidation.valid) {
-        return res.status(400).json({ message: passwordValidation.message });
+      // Validate password strength
+      if (password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters long" });
       }
       
       // Check if username already exists
@@ -230,7 +214,7 @@ export function setupAuth(app: Express): void {
       
       res.json({ message: "Password reset successfully" });
     } catch (error) {
-      console.error("Error resetting password");
+      console.error("Error resetting password:", error);
       res.status(500).json({ message: "Error resetting password" });
     }
   });

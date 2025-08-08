@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Calendar, MapPin, Crown } from 'lucide-react';
+import { Trophy, Calendar, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 
@@ -16,7 +15,6 @@ interface Tournament {
   startDate?: string;
   endDate?: string;
   matchCount?: number;
-  isPremium?: boolean;
 }
 
 function TournamentCard({ tournament }: { tournament: Tournament }) {
@@ -42,15 +40,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
             )}
             <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-30 transition-all duration-300" />
             <div className="absolute bottom-4 left-4 right-4">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold text-white shadow-lg">{tournament.name}</h3>
-                {tournament.isPremium && (
-                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                    <Crown className="h-3 w-3 mr-1" />
-                    Premium
-                  </Badge>
-                )}
-              </div>
+              <h3 className="text-xl font-bold text-white shadow-lg">{tournament.name}</h3>
             </div>
           </div>
           

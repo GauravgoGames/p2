@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Match, Team, Prediction, Tournament } from '@shared/schema';
+import { Match, Team, Prediction } from '@shared/schema';
 import { 
   Tabs, 
   TabsList, 
@@ -72,39 +72,6 @@ const PredictNowPage = () => {
       if (!res.ok) throw new Error('Failed to fetch teams');
       return res.json();
     }
-  });
-
-  // Fetch tournaments for premium access checking
-  const { data: tournaments } = useQuery<Tournament[]>({
-    queryKey: ['/api/tournaments'],
-    queryFn: async () => {
-      const res = await fetch('/api/tournaments');
-      if (!res.ok) throw new Error('Failed to fetch tournaments');
-      return res.json();
-    }
-  });
-
-  // Get premium access for each premium tournament
-  const { data: premiumAccess } = useQuery({
-    queryKey: ['/api/premium-access'],
-    queryFn: async () => {
-      if (!tournaments || !user) return {};
-      
-      const premiumTournaments = tournaments.filter(t => t.isPremium);
-      const accessPromises = premiumTournaments.map(async (tournament) => {
-        const response = await fetch(`/api/tournaments/${tournament.id}/premium-access`);
-        if (!response.ok) return { tournamentId: tournament.id, isPremium: false };
-        const data = await response.json();
-        return { tournamentId: tournament.id, isPremium: data.isPremium };
-      });
-      
-      const results = await Promise.all(accessPromises);
-      return results.reduce((acc, result) => {
-        acc[result.tournamentId] = result.isPremium;
-        return acc;
-      }, {} as Record<number, boolean>);
-    },
-    enabled: !!tournaments && !!user,
   });
   
   const getUserPredictionForMatch = (matchId: number) => {
@@ -300,19 +267,13 @@ const PredictNowPage = () => {
               {isLoadingMatches ? (
                 renderMatchesSkeleton()
               ) : filteredMatches().length > 0 ? (
-                filteredMatches().map(match => {
-                  const tournament = tournaments?.find(t => t.id === match.tournamentId);
-                  const hasAccess = !tournament?.isPremium || premiumAccess?.[match.tournamentId];
-                  return (
-                    <MatchCard 
-                      key={match.id} 
-                      match={match} 
-                      userPrediction={getUserPredictionForMatch(match.id)}
-                      tournament={tournament}
-                      hasAccess={hasAccess}
-                    />
-                  );
-                })
+                filteredMatches().map(match => (
+                  <MatchCard 
+                    key={match.id} 
+                    match={match} 
+                    userPrediction={getUserPredictionForMatch(match.id)}
+                  />
+                ))
               ) : (
                 <div className="col-span-3 text-center py-12 text-neutral-500 border border-dashed rounded-md">
                   <Calendar className="mx-auto h-12 w-12 text-neutral-300 mb-2" />
@@ -328,19 +289,13 @@ const PredictNowPage = () => {
               {isLoadingMatches ? (
                 renderMatchesSkeleton()
               ) : filteredMatches().length > 0 ? (
-                filteredMatches().map(match => {
-                  const tournament = tournaments?.find(t => t.id === match.tournamentId);
-                  const hasAccess = !tournament?.isPremium || premiumAccess?.[match.tournamentId];
-                  return (
-                    <MatchCard 
-                      key={match.id} 
-                      match={match} 
-                      userPrediction={getUserPredictionForMatch(match.id)}
-                      tournament={tournament}
-                      hasAccess={hasAccess}
-                    />
-                  );
-                })
+                filteredMatches().map(match => (
+                  <MatchCard 
+                    key={match.id} 
+                    match={match} 
+                    userPrediction={getUserPredictionForMatch(match.id)}
+                  />
+                ))
               ) : (
                 <div className="col-span-3 text-center py-12 text-neutral-500 border border-dashed rounded-md">
                   <Calendar className="mx-auto h-12 w-12 text-neutral-300 mb-2" />
@@ -356,19 +311,13 @@ const PredictNowPage = () => {
               {isLoadingMatches ? (
                 renderMatchesSkeleton()
               ) : filteredMatches().length > 0 ? (
-                filteredMatches().map(match => {
-                  const tournament = tournaments?.find(t => t.id === match.tournamentId);
-                  const hasAccess = !tournament?.isPremium || premiumAccess?.[match.tournamentId];
-                  return (
-                    <MatchCard 
-                      key={match.id} 
-                      match={match} 
-                      userPrediction={getUserPredictionForMatch(match.id)}
-                      tournament={tournament}
-                      hasAccess={hasAccess}
-                    />
-                  );
-                })
+                filteredMatches().map(match => (
+                  <MatchCard 
+                    key={match.id} 
+                    match={match} 
+                    userPrediction={getUserPredictionForMatch(match.id)}
+                  />
+                ))
               ) : (
                 <div className="col-span-3 text-center py-12 text-neutral-500 border border-dashed rounded-md">
                   <Calendar className="mx-auto h-12 w-12 text-neutral-300 mb-2" />
@@ -384,19 +333,13 @@ const PredictNowPage = () => {
               {isLoadingMatches ? (
                 renderMatchesSkeleton()
               ) : filteredMatches().length > 0 ? (
-                filteredMatches().map(match => {
-                  const tournament = tournaments?.find(t => t.id === match.tournamentId);
-                  const hasAccess = !tournament?.isPremium || premiumAccess?.[match.tournamentId];
-                  return (
-                    <MatchCard 
-                      key={match.id} 
-                      match={match} 
-                      userPrediction={getUserPredictionForMatch(match.id)}
-                      tournament={tournament}
-                      hasAccess={hasAccess}
-                    />
-                  );
-                })
+                filteredMatches().map(match => (
+                  <MatchCard 
+                    key={match.id} 
+                    match={match} 
+                    userPrediction={getUserPredictionForMatch(match.id)}
+                  />
+                ))
               ) : (
                 <div className="col-span-3 text-center py-12 text-neutral-500 border border-dashed rounded-md">
                   <Calendar className="mx-auto h-12 w-12 text-neutral-300 mb-2" />

@@ -12,7 +12,7 @@ import {
   tournamentTeams,
   supportTickets,
   ticketMessages,
-  premiumUsers,
+  userLoves,
   User, 
   InsertUser, 
   Team, 
@@ -29,10 +29,10 @@ import {
   TicketMessage,
   TicketMessageWithUsername,
   InsertTournament,
-  PremiumUser,
-  InsertPremiumUser
+  UserLove,
+  InsertUserLove
 } from "@shared/schema";
-import { eq, and, asc, desc, sql, inArray, gte } from "drizzle-orm";
+import { eq, and, asc, desc, sql, inArray } from "drizzle-orm";
 import { pool } from "./db";
 import { IStorage } from "./storage";
 
@@ -85,7 +85,7 @@ export class DatabaseStorage implements IStorage {
         // Seed admin user - must be verified by default
         await db.insert(users).values({
           username: 'admin',
-          password: '$2b$12$hBo/ePR99DezMmEpbpB.R.2Q8zwvK5aWA28XTTEqSsfB2GSY3n6YG', // Default admin password
+          password: '$2b$12$hBo/ePR99DezMmEpbpB.R.2Q8zwvK5aWA28XTTEqSsfB2GSY3n6YG', // plaintext: admin123
           email: 'admin@proace.com',
           displayName: 'Administrator',
           role: 'admin',
@@ -135,7 +135,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(sql`LOWER(${users.username}) = LOWER(${username})`);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
   
@@ -167,19 +167,6 @@ export class DatabaseStorage implements IStorage {
   async updateUserVerification(id: number, isVerified: boolean): Promise<User> {
     const [updatedUser] = await db.update(users)
       .set({ isVerified })
-      .where(eq(users.id, id))
-      .returning();
-    
-    if (!updatedUser) {
-      throw new Error(`User with id ${id} not found`);
-    }
-    
-    return updatedUser;
-  }
-
-  async updateUserPoints(id: number, points: number): Promise<User> {
-    const [updatedUser] = await db.update(users)
-      .set({ points })
       .where(eq(users.id, id))
       .returning();
     
@@ -241,20 +228,7 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // Get points from pointsLedger for tournament matches
-    const tournamentPoints = await db.select()
-      .from(pointsLedger)
-      .where(sql`${pointsLedger.matchId} IN (${sql.join(matchIds.map(id => sql`${id}`), sql`, `)})`);
-    
-    // Calculate points for each user from pointsLedger
-    for (const pointEntry of tournamentPoints) {
-      const leaderboardUser = userMap.get(pointEntry.userId);
-      if (leaderboardUser) {
-        leaderboardUser.points += pointEntry.points;
-      }
-    }
-    
-    // Calculate statistics from predictions
+    // Calculate statistics
     for (const prediction of tournamentPredictions) {
       const match = tournamentMatches.find(m => m.id === prediction.matchId);
       if (!match || match.status !== 'completed') continue;
@@ -263,6 +237,11 @@ export class DatabaseStorage implements IStorage {
       if (!leaderboardUser) continue;
       
       leaderboardUser.totalMatches++;
+      
+      // Add points for correct predictions
+      if (prediction.pointsEarned) {
+        leaderboardUser.points += prediction.pointsEarned;
+      }
       
       // Count correct predictions
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
@@ -335,19 +314,6 @@ export class DatabaseStorage implements IStorage {
   async getAllTeams(): Promise<Team[]> {
     return await db.select().from(teams);
   }
-  
-  async updateTeam(id: number, teamData: Partial<Team>): Promise<Team> {
-    const [updated] = await db.update(teams)
-      .set(teamData)
-      .where(eq(teams.id, id))
-      .returning();
-    
-    if (!updated) {
-      throw new Error(`Team with id ${id} not found`);
-    }
-    
-    return updated;
-  }
 
   // Tournament-Team relationship methods
   async addTeamToTournament(tournamentId: number, teamId: number): Promise<void> {
@@ -395,11 +361,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(tournamentTeams, eq(tournaments.id, tournamentTeams.tournamentId))
       .where(eq(tournamentTeams.teamId, teamId));
     
-    return result.map(tournament => ({
-      ...tournament,
-      isPremium: false,
-      hideTossPredictions: false
-    }));
+    return result;
   }
   
   // Match methods
@@ -486,37 +448,10 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteMatch(id: number): Promise<void> {
-    // First delete associated predictions and points
-    await db.delete(predictions).where(eq(predictions.matchId, id));
-    await db.delete(pointsLedger).where(eq(pointsLedger.matchId, id));
-    
-    // Recalculate user points after removing points from this match
-    await this.recalculateAllUserPoints();
-    
-    // Then delete the match
     const result = await db.delete(matches).where(eq(matches.id, id));
     if (!result) {
       throw new Error(`Match with id ${id} not found`);
     }
-  }
-
-  async deletePredictionsForMatch(matchId: number): Promise<void> {
-    await db.delete(predictions).where(eq(predictions.matchId, matchId));
-  }
-
-  async recalculatePointsForMatch(matchId: number): Promise<void> {
-    // Get the match details
-    const match = await this.getMatchById(matchId);
-    if (!match || match.status !== 'completed') {
-      return;
-    }
-
-    // Calculate points for this specific match
-    await this.calculatePoints(matchId);  
-  }
-
-  async deletePredictionsByMatch(matchId: number): Promise<void> {
-    await db.delete(predictions).where(eq(predictions.matchId, matchId));
   }
   
   // Prediction methods
@@ -605,59 +540,20 @@ export class DatabaseStorage implements IStorage {
     const allUsers = await this.getAllUsers();
     const userMap: Map<number, LeaderboardUser> = new Map();
     
-    // Initialize leaderboard users with their current points from users table
+    // Initialize leaderboard users
     allUsers.forEach(user => {
       userMap.set(user.id, {
         id: user.id,
         username: user.username,
         displayName: user.displayName || undefined,
         profileImage: user.profileImage || undefined,
-        points: user.points || 0, // Use current user points from users table
+        points: user.points || 0,
         correctPredictions: 0,
         totalMatches: 0,
         isVerified: user.isVerified,
         viewedByCount: user.viewedByCount || 0
       });
     });
-    
-    // Get all points from pointsLedger with time filtering if needed
-    let pointsQuery = db.select().from(pointsLedger);
-    
-    if (timeframe !== 'all-time') {
-      const now = new Date();
-      let startDate: Date;
-      
-      switch (timeframe) {
-        case 'today':
-          startDate = new Date(now);
-          startDate.setHours(0, 0, 0, 0);
-          break;
-        case 'this-week':
-          startDate = new Date(now);
-          startDate.setDate(now.getDate() - 7);
-          break;
-        case 'this-month':
-          startDate = new Date(now);
-          startDate.setMonth(now.getMonth() - 1);
-          break;
-        case 'this-year':
-          startDate = new Date(now);
-          startDate.setFullYear(now.getFullYear() - 1);
-          break;
-        default:
-          startDate = new Date(0); // Beginning of time
-      }
-      
-      // Add filtering by timestamp
-      pointsQuery = pointsQuery.where(
-        gte(pointsLedger.timestamp, startDate)
-      ) as any;
-    }
-    
-    const allPointsEntries = await pointsQuery;
-    
-    // Note: We now use the current user points from the users table instead of summing from pointsLedger
-    // This prevents showing inflated points and uses the actual current user balance
     
     // Get all predictions with time filtering if needed
     let predictionsQuery = db.select().from(predictions);
@@ -667,10 +563,6 @@ export class DatabaseStorage implements IStorage {
       let startDate: Date;
       
       switch (timeframe) {
-        case 'today':
-          startDate = new Date(now);
-          startDate.setHours(0, 0, 0, 0);
-          break;
         case 'this-week':
           startDate = new Date(now);
           startDate.setDate(now.getDate() - 7);
@@ -689,8 +581,8 @@ export class DatabaseStorage implements IStorage {
       
       // Add filtering by createdAt
       predictionsQuery = predictionsQuery.where(
-        gte(predictions.createdAt, startDate)
-      ) as any;
+        sql`${predictions.createdAt} >= ${startDate.toISOString()}`
+      );
     }
     
     const allPredictions = await predictionsQuery;
@@ -740,52 +632,11 @@ export class DatabaseStorage implements IStorage {
       });
   }
   
-  // Get user statistics for profile display
-  async getUserStats(userId: number): Promise<{ correctPredictions: number; totalMatches: number; accuracy: number }> {
-    const userPredictions = await db.select()
-      .from(predictions)
-      .where(eq(predictions.userId, userId));
-    
-    let correctPredictions = 0;
-    let totalMatches = 0;
-    
-    for (const prediction of userPredictions) {
-      const match = await this.getMatchById(prediction.matchId);
-      if (!match || match.status !== 'completed') continue;
-      
-      totalMatches++;
-      
-      // Check if toss prediction was correct
-      if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
-        correctPredictions++;
-      }
-      
-      // Check if match winner prediction was correct
-      if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
-        correctPredictions++;
-      }
-    }
-    
-    const accuracy = totalMatches > 0 ? (correctPredictions / (totalMatches * 2)) * 100 : 0;
-    
-    return {
-      correctPredictions,
-      totalMatches,
-      accuracy
-    };
-  }
-
   // Point calculation
   async calculatePoints(matchId: number): Promise<void> {
     const match = await this.getMatchById(matchId);
     if (!match || match.status !== 'completed') {
       throw new Error(`Match with id ${matchId} is not completed`);
-    }
-
-    // Get tournament info to check if it's premium and has toss predictions hidden
-    let tournament: Tournament | undefined;
-    if (match.tournamentId) {
-      tournament = await this.getTournamentById(match.tournamentId);
     }
     
     // Get all predictions for this match
@@ -796,27 +647,23 @@ export class DatabaseStorage implements IStorage {
     for (const prediction of matchPredictions) {
       let totalPoints = 0;
       
-      // Points for correct toss winner prediction (only if not hidden in tournament)
+      // Points for correct toss winner prediction
       if (match.tossWinnerId && prediction.predictedTossWinnerId === match.tossWinnerId) {
-        if (!tournament?.hideTossPredictions) {
-          totalPoints += 1;
-          await this.addPointsToUser(
-            prediction.userId, 
-            1, 
-            matchId, 
-            'Correct toss winner prediction'
-          );
-        }
+        totalPoints += 1;
+        await this.addPointsToUser(
+          prediction.userId, 
+          1, 
+          matchId, 
+          'Correct toss winner prediction'
+        );
       }
       
       // Points for correct match winner prediction
       if (match.matchWinnerId && prediction.predictedMatchWinnerId === match.matchWinnerId) {
-        // Premium tournaments give 2 points for match predictions
-        const matchPoints = tournament?.isPremium ? 2 : 1;
-        totalPoints += matchPoints;
+        totalPoints += 1;
         await this.addPointsToUser(
           prediction.userId, 
-          matchPoints, 
+          1, 
           matchId, 
           'Correct match winner prediction'
         );
@@ -846,15 +693,6 @@ export class DatabaseStorage implements IStorage {
         points,
         reason
       });
-  }
-
-  async getUserPoints(userId: number): Promise<number> {
-    const result = await db
-      .select({ totalPoints: sql<number>`COALESCE(SUM(${pointsLedger.points}), 0)` })
-      .from(pointsLedger)
-      .where(eq(pointsLedger.userId, userId));
-    
-    return result[0]?.totalPoints || 0;
   }
   
   // Helper methods
@@ -936,35 +774,13 @@ export class DatabaseStorage implements IStorage {
     return tournament || undefined;
   }
 
-  async getTournamentByName(name: string): Promise<Tournament | undefined> {
-    const [tournament] = await db.select()
-      .from(tournaments)
-      .where(eq(tournaments.name, name));
-    return tournament || undefined;
-  }
-
   async getAllTournaments(): Promise<Tournament[]> {
-    const result = await db.select().from(tournaments).orderBy(asc(tournaments.createdAt));
-    // Add missing fields for compatibility
-    return result.map(tournament => ({
-      ...tournament,
-      isPremium: tournament.isPremium || false,
-      hideTossPredictions: tournament.hideTossPredictions || false
-    }));
+    return await db.select().from(tournaments).orderBy(asc(tournaments.createdAt));
   }
 
   async updateTournament(id: number, tournamentData: Partial<Tournament>): Promise<Tournament> {
-    // Convert date strings to Date objects if they exist
-    const processedData = { ...tournamentData };
-    if (processedData.startDate && typeof processedData.startDate === 'string') {
-      processedData.startDate = new Date(processedData.startDate);
-    }
-    if (processedData.endDate && typeof processedData.endDate === 'string') {
-      processedData.endDate = new Date(processedData.endDate);
-    }
-    
     const [updated] = await db.update(tournaments)
-      .set(processedData)
+      .set(tournamentData)
       .where(eq(tournaments.id, id))
       .returning();
     return updated;
@@ -986,40 +802,6 @@ export class DatabaseStorage implements IStorage {
     
     return matchesWithTeams;
   }
-
-  // Premium Users methods
-  async addPremiumUser(tournamentId: number, userId: number): Promise<PremiumUser> {
-    const [premiumUser] = await db.insert(premiumUsers)
-      .values({ tournamentId, userId })
-      .returning();
-    
-    return premiumUser;
-  }
-
-  async removePremiumUser(tournamentId: number, userId: number): Promise<void> {
-    await db.delete(premiumUsers).where(
-      and(
-        eq(premiumUsers.tournamentId, tournamentId),
-        eq(premiumUsers.userId, userId)
-      )
-    );
-  }
-
-  async getPremiumUsers(tournamentId: number): Promise<PremiumUser[]> {
-    return await db.select().from(premiumUsers).where(eq(premiumUsers.tournamentId, tournamentId));
-  }
-
-  async isPremiumUser(tournamentId: number, userId: number): Promise<boolean> {
-    const [result] = await db.select().from(premiumUsers).where(
-      and(
-        eq(premiumUsers.tournamentId, tournamentId),
-        eq(premiumUsers.userId, userId)
-      )
-    );
-    return !!result;
-  }
-
-
 
   // Support ticket methods
   async createSupportTicket(userId: number, subject: string, priority: string = 'medium'): Promise<SupportTicket> {
@@ -1093,6 +875,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Social engagement methods
+  async incrementUserLoveCount(userId: number): Promise<User> {
+    const [updatedUser] = await db.update(users)
+      .set({ lovedByCount: sql`${users.lovedByCount} + 1` })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error('User not found');
+    }
+    
+    return updatedUser;
+  }
+
   async incrementUserViewCount(userId: number): Promise<User> {
     const [updatedUser] = await db.update(users)
       .set({ viewedByCount: sql`${users.viewedByCount} + 1` })
@@ -1106,30 +901,90 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
-  // Points management methods
-  async recalculateAllUserPoints(): Promise<void> {
-    // Get all users
-    const allUsers = await db.select().from(users);
-    
-    for (const user of allUsers) {
-      // Calculate total points from points ledger
-      const pointsResult = await db.select({ 
-        total: sql<number>`COALESCE(SUM(${pointsLedger.points}), 0)` 
-      })
-      .from(pointsLedger)
-      .where(eq(pointsLedger.userId, user.id))
-      .execute();
-
-      const totalPoints = pointsResult[0]?.total || 0;
-
-      // Update user's points
-      await db.update(users)
-        .set({ points: totalPoints })
-        .where(eq(users.id, user.id));
+  // Authenticated love system methods
+  async toggleUserLove(loverId: number, lovedUserId: number): Promise<{ isLoved: boolean; lovedByCount: number }> {
+    if (loverId === lovedUserId) {
+      throw new Error('Users cannot love themselves');
     }
+
+    // Check if love relationship already exists
+    const existingLove = await db.select()
+      .from(userLoves)
+      .where(and(eq(userLoves.loverId, loverId), eq(userLoves.lovedUserId, lovedUserId)))
+      .limit(1);
+
+    let isLoved: boolean;
+
+    if (existingLove.length > 0) {
+      // Remove love relationship
+      await db.delete(userLoves)
+        .where(and(eq(userLoves.loverId, loverId), eq(userLoves.lovedUserId, lovedUserId)));
+      
+      // Safely decrement love count (ensure it doesn't go below 0)
+      await db.update(users)
+        .set({ lovedByCount: sql`GREATEST(${users.lovedByCount} - 1, 0)` })
+        .where(eq(users.id, lovedUserId));
+      
+      isLoved = false;
+    } else {
+      // Create love relationship
+      await db.insert(userLoves)
+        .values({ loverId, lovedUserId });
+      
+      // Increment love count
+      await db.update(users)
+        .set({ lovedByCount: sql`${users.lovedByCount} + 1` })
+        .where(eq(users.id, lovedUserId));
+      
+      isLoved = true;
+    }
+
+    // Get updated love count
+    const user = await db.select({ lovedByCount: users.lovedByCount })
+      .from(users)
+      .where(eq(users.id, lovedUserId))
+      .limit(1);
+
+    return {
+      isLoved,
+      lovedByCount: user[0]?.lovedByCount || 0
+    };
   }
 
+  async getUserLoveStatus(loverId: number, lovedUserId: number): Promise<boolean> {
+    const existingLove = await db.select()
+      .from(userLoves)
+      .where(and(eq(userLoves.loverId, loverId), eq(userLoves.lovedUserId, lovedUserId)))
+      .limit(1);
 
+    return existingLove.length > 0;
+  }
+
+  async getUserLovers(userId: number): Promise<User[]> {
+    const lovers = await db.select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      profileImage: users.profileImage,
+      isVerified: users.isVerified,
+      role: users.role,
+      points: users.points,
+      email: users.email,
+      password: users.password,
+      proaceUserId: users.proaceUserId,
+      proaceDisqusId: users.proaceDisqusId,
+      securityCode: users.securityCode,
+      lovedByCount: users.lovedByCount,
+      viewedByCount: users.viewedByCount,
+      createdAt: users.createdAt
+    })
+    .from(userLoves)
+    .innerJoin(users, eq(userLoves.loverId, users.id))
+    .where(eq(userLoves.lovedUserId, userId))
+    .orderBy(desc(userLoves.createdAt));
+
+    return lovers;
+  }
 }
 
 export const storage = new DatabaseStorage();

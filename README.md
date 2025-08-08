@@ -1,83 +1,51 @@
-# CricProAce - Cricket Prediction Platform
+# CricProAce - Sports Prediction Platform
 
-A comprehensive cricket prediction platform built with React, Node.js, and PostgreSQL.
+A comprehensive cricket prediction platform with tournament management, user verification system, and support ticket functionality.
 
 ## Features
+- Advanced tournament and match management
+- User prediction system with points and leaderboards
+- Admin verification system with badges
+- Support ticket system with real-time chat
+- Mobile-responsive design
+- PostgreSQL database integration
 
-- 🏏 Cricket match predictions
-- 👥 User registration and authentication  
-- 🏆 Tournament management
-- 📊 Leaderboards and points system
-- 👨‍💼 Admin panel for match management
-- 🎯 Toss and match winner predictions
-- 📱 Responsive design
-- 🔒 Secure user sessions
-
-## Tech Stack
-
-### Frontend
-- React 18 with TypeScript
-- Tailwind CSS + shadcn/ui components
-- Wouter for routing
-- React Query for state management
-- Vite for building
-
-### Backend  
-- Node.js with Express
-- PostgreSQL database
-- Drizzle ORM
-- Passport.js authentication
-- WebSocket support
-- Session management
-
-### Deployment
-- Optimized for cPanel hosting
-- PM2 process management
-- Production builds with esbuild
+## Technology Stack
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **Backend**: Express.js + TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Custom session-based auth
+- **UI Components**: Shadcn/ui + Radix UI
 
 ## Quick Start
 
-### Development
-```bash
-npm install
-npm run dev
-```
+### For cPanel Hosting:
 
-### Production Build
-```bash
-npm run build
-npm start
-```
+1. Upload all files to your cPanel file manager
+2. Install Node.js via cPanel (if available) or contact hosting provider
+3. Set up PostgreSQL database in cPanel
+4. Configure environment variables in `.env` file
+5. Run deployment script:
+   ```bash
+   chmod +x cpanel-deploy.sh
+   ./cpanel-deploy.sh
+   ```
 
-### Database Setup
-```bash
-npm run db:push
-```
+### Environment Setup:
+1. Copy `.env.example` to `.env`
+2. Update database credentials
+3. Set a secure SESSION_SECRET
+4. Configure your domain settings
 
-## Environment Variables
+### Database Setup:
+The application will automatically create required tables on first run.
 
-```env
-NODE_ENV=production
-DATABASE_URL=your_postgres_connection_string
-SESSION_SECRET=your_session_secret
-PORT=5000
-HOST=0.0.0.0
-```
+## Admin Access
+Default admin credentials:
+- Username: admin
+- Password: admin123
 
-## Project Structure
+**Important**: Change admin password immediately after first login!
 
-```
-├── client/src/          # React frontend
-├── server/              # Node.js backend  
-├── shared/              # Shared types and schemas
-├── dist/                # Built files (generated)
-└── uploads/             # User uploaded files
-```
-
-## Deployment
-
-See `GITHUB-UPDATE-INSTRUCTIONS.md` for complete deployment guide to cPanel hosting.
-
-## License
-
-MIT License
+## Support
+For technical support, please refer to the documentation or contact the development team.

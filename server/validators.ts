@@ -10,34 +10,6 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// Enhanced security function to prevent null byte injection and other attacks
-const sanitizeInput = (value: string): string => {
-  if (typeof value !== 'string') return '';
-  
-  // Remove null bytes and other dangerous characters
-  return value
-    .replace(/\0/g, '') // Remove null bytes
-    .replace(/[\x00-\x1f\x7f-\x9f]/g, '') // Remove control characters
-    .trim();
-};
-
-// Custom validator for secure username
-const validateSecureUsername = (value: string) => {
-  const sanitized = sanitizeInput(value);
-  
-  // Check for null byte injection attempt
-  if (value !== sanitized) {
-    throw new Error('Username contains invalid characters');
-  }
-  
-  // Additional security checks
-  if (sanitized.toLowerCase().includes('admin') && sanitized !== 'admin') {
-    throw new Error('Username cannot impersonate admin account');
-  }
-  
-  return true;
-};
-
 // User validation rules
 export const validateRegister = [
   body('username')
@@ -46,7 +18,6 @@ export const validateRegister = [
     .withMessage('Username must be between 3 and 20 characters')
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username can only contain letters, numbers, and underscores')
-    .custom(validateSecureUsername)
     .escape(),
   body('password')
     .isLength({ min: 8 })
@@ -72,19 +43,10 @@ export const validateLogin = [
     .trim()
     .notEmpty()
     .withMessage('Username is required')
-    .custom((value: string) => {
-      const sanitized = sanitizeInput(value);
-      if (value !== sanitized) {
-        throw new Error('Username contains invalid characters');
-      }
-      return true;
-    })
     .escape(),
   body('password')
     .notEmpty()
-    .withMessage('Password is required')
-    .isLength({ max: 128 })
-    .withMessage('Password too long'),
+    .withMessage('Password is required'),
 ];
 
 // Match validation rules
@@ -156,39 +118,7 @@ export const validateUsername = [
     .trim()
     .notEmpty()
     .withMessage('Username is required')
-    .custom((value: string) => {
-      const sanitized = sanitizeInput(value);
-      if (value !== sanitized) {
-        throw new Error('Username contains invalid characters');
-      }
-      return true;
-    })
     .escape(),
-];
-
-// Profile update validation
-export const validateProfileUpdate = [
-  body('displayName')
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('Display name must not exceed 50 characters')
-    .custom((value: string) => {
-      if (value) {
-        const sanitized = sanitizeInput(value);
-        if (value !== sanitized) {
-          throw new Error('Display name contains invalid characters');
-        }
-      }
-      return true;
-    })
-    .escape(),
-  body('email')
-    .optional()
-    .trim()
-    .isEmail()
-    .withMessage('Invalid email address')
-    .normalizeEmail(),
 ];
 
 // Query validations
@@ -231,38 +161,22 @@ export const validateTicketMessage = [
     .escape(),
 ];
 
-// Enhanced file upload validation with security checks
+// File upload validation
 export const validateImageUpload = (req: Request, res: Response, next: NextFunction) => {
   if (!req.file) {
     return next();
   }
 
-  // Check file type (more strict validation)
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-  const allowedExtensions = ['.jpg', '.jpeg', '.png'];
-  
+  // Check file type
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
   if (!allowedTypes.includes(req.file.mimetype)) {
-    return res.status(400).json({ message: 'Invalid file type. Only JPEG and PNG are allowed.' });
+    return res.status(400).json({ message: 'Invalid file type. Only JPEG, PNG, and GIF are allowed.' });
   }
 
-  // Validate file extension matches MIME type
-  const fileExtension = req.file.originalname.toLowerCase().substring(req.file.originalname.lastIndexOf('.'));
-  if (!allowedExtensions.includes(fileExtension)) {
-    return res.status(400).json({ message: 'Invalid file extension.' });
-  }
-
-  // Check file size (max 2MB - reduced for security)
-  const maxSize = 2 * 1024 * 1024; // 2MB
+  // Check file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024; // 5MB
   if (req.file.size > maxSize) {
-    return res.status(400).json({ message: 'File size must not exceed 2MB.' });
-  }
-
-  // Check filename for malicious patterns
-  const dangerousPatterns = [/\.\./g, /\//g, /\\/g, /:/g, /\*/g, /\?/g, /"/g, /</g, />/g, /\|/g];
-  for (const pattern of dangerousPatterns) {
-    if (pattern.test(req.file.originalname)) {
-      return res.status(400).json({ message: 'Filename contains invalid characters.' });
-    }
+    return res.status(400).json({ message: 'File size must not exceed 5MB.' });
   }
 
   next();

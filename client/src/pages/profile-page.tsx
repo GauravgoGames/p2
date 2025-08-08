@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, PieChart, Check, X, Eye } from "lucide-react";
+import { Trophy, PieChart, Check, X, Heart, Eye } from "lucide-react";
 import MatchCard from '@/components/match-card';
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -120,7 +120,7 @@ export default function ProfilePage() {
           {/* Statistics Section */}
           <div>
             <h2 className="text-2xl font-bold mb-4">Statistics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-none shadow-md">
                 <CardContent className="pt-6">
                   <div className="text-center">
@@ -157,6 +157,18 @@ export default function ProfilePage() {
                     </div>
                     <div className="text-3xl font-bold text-purple-700">{correctPredictions}/{totalPredictions}</div>
                     <p className="text-sm font-medium text-purple-800">Correct Predictions</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-pink-50 to-pink-100 border-none shadow-md">
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <div className="bg-white p-3 rounded-full inline-block shadow-md mb-2">
+                      <Heart className="h-8 w-8 text-pink-500" />
+                    </div>
+                    <div className="text-3xl font-bold text-pink-700">{user.lovedByCount || 0}</div>
+                    <p className="text-sm font-medium text-pink-800">Loved By</p>
                   </div>
                 </CardContent>
               </Card>

@@ -1,57 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
 import helmet from "helmet";
-import path from "path";
-import fs from "fs";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import hpp from "hpp";
 import cors from "cors";
-import { 
-  validateAndSanitizeInput, 
-  validateContentType,
-  adminIPWhitelist 
-} from "./security-utils";
 
 const app = express();
 
-// Enhanced Security middleware with development-friendly CSP
-const isDevelopment = process.env.NODE_ENV === 'development';
-
+// Security middleware
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      scriptSrc: isDevelopment 
-        ? ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://replit.com"]
-        : ["'self'", "https://replit.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: isDevelopment
-        ? ["'self'", "ws:", "wss:", "http:", "https:"]
-        : ["'self'"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      workerSrc: isDevelopment ? ["'self'", "blob:"] : ["'none'"],
-      childSrc: ["'none'"],
-      formAction: ["'self'"],
-      frameAncestors: ["'none'"],
-      baseUri: ["'self'"],
-      manifestSrc: ["'self'"]
-    }
-  },
+  contentSecurityPolicy: false, // Disable CSP for development, can be configured properly for production
   crossOriginEmbedderPolicy: false,
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  },
-  noSniff: true,
-  frameguard: { action: 'deny' },
-  xssFilter: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
 }));
 
 // CORS configuration
@@ -64,42 +25,20 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Enhanced Rate limiting with security hardening
+// Rate limiting
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // Reduced to 500 requests per windowMs for better security
-  message: { error: 'Too many requests from this IP, please try again later.' },
+  max: 1000, // Increased to 1000 requests per windowMs for better user experience
+  message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Rate limit exceeded',
-      retryAfter: Math.round(Date.now() / 1000)
-    });
-  }
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Stricter limit for auth attempts
-  message: { error: 'Too many authentication attempts, please try again later.' },
+  max: 10, // Increased to 10 login attempts per windowMs
+  message: 'Too many login attempts, please try again later.',
   skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Authentication rate limit exceeded',
-      retryAfter: Math.round(Date.now() / 1000)
-    });
-  }
-});
-
-const strictLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Very strict for admin endpoints
-  message: { error: 'Too many requests to sensitive endpoints.' },
-  standardHeaders: true,
-  legacyHeaders: false
 });
 
 const applyRateLimiters = (req: Request, res: Response, next: NextFunction) => {
@@ -108,19 +47,11 @@ const applyRateLimiters = (req: Request, res: Response, next: NextFunction) => {
     return next();
   }
   
-  // Apply strict limiting to admin endpoints
-  if (req.path.startsWith('/api/admin/')) {
-    return strictLimiter(req, res, next);
+  if (req.path === '/api/login' || req.path === '/api/register') {
+    authLimiter(req, res, next);
+  } else {
+    generalLimiter(req, res, next);
   }
-  
-  // Apply auth limiting to authentication endpoints
-  if (req.path === '/api/login' || req.path === '/api/register' || 
-      req.path.startsWith('/api/forgot-password')) {
-    return authLimiter(req, res, next);
-  }
-  
-  // Apply general limiting to all other API endpoints
-  return generalLimiter(req, res, next);
 };
 
 app.use(applyRateLimiters);
@@ -131,49 +62,9 @@ app.use(mongoSanitize());
 // Prevent parameter pollution
 app.use(hpp());
 
-// Enhanced body parsing middleware with security hardening
-app.use(express.json({ 
-  limit: '10kb',
-  strict: true,
-  type: ['application/json']
-}));
-app.use(express.urlencoded({ 
-  extended: false, 
-  limit: '10kb',
-  parameterLimit: 100
-}));
-
-// Enhanced input validation and security middleware
-app.use(validateAndSanitizeInput);
-
-// Content-Type validation for API endpoints
-app.use('/api', validateContentType(['application/json', 'application/x-www-form-urlencoded', 'multipart/form-data']));
-
-// IP whitelisting for admin endpoints (if configured)
-app.use('/api/admin', adminIPWhitelist);
-
-// Additional security headers
-app.use((req: Request, res: Response, next: NextFunction) => {
-  // Remove server information
-  res.removeHeader('X-Powered-By');
-  res.removeHeader('Server');
-  
-  // Add comprehensive security headers (development-aware)
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()');
-  
-  // Relax COEP in development for Vite compatibility
-  if (!isDevelopment) {
-    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  }
-  
-  next();
-});
+// Body parsing middleware with size limits
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -205,49 +96,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Log function for production compatibility
-function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
-
-// Production static file serving
-function serveStatic(app: express.Application) {
-  const distPath = path.resolve(process.cwd(), "dist/public");
-
-  if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
-    );
-  }
-
-  app.use(express.static(distPath));
-
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
-  });
-}
-
-// Development Vite setup (only in development)
-async function setupVite(app: express.Application, server: any) {
-  if (process.env.NODE_ENV !== 'development') return;
-  
-  try {
-    const { setupVite: setupViteFromFile } = await import("./vite.js");
-    return setupViteFromFile(app as any, server);
-  } catch (error) {
-    console.warn("Vite setup failed, falling back to static serving:", error);
-    serveStatic(app);
-  }
-}
-
 (async () => {
   const server = await registerRoutes(app);
 
@@ -262,21 +110,21 @@ async function setupVite(app: express.Application, server: any) {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "development") {
+  if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // Use PORT environment variable or default to 3000 (standard Node.js port)
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
-  const host = "0.0.0.0"; // Listen on all interfaces for deployment compatibility
-  
+  // ALWAYS serve the app on port 5000
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = 5000;
   server.listen({
     port,
-    host,
+    host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on ${host}:${port} (${process.env.NODE_ENV || 'development'} mode)`);
+    log(`serving on port ${port}`);
   });
 })();
